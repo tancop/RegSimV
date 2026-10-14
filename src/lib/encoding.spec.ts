@@ -45,4 +45,31 @@ describe("encoding", () => {
     let ins = 0x1_0000_0000;
     expect(() => decodeInstruction(ins)).toThrow(RangeError);
   });
+
+  it("rejects out of range opcode", () => {
+    let ins: Instruction = {
+      opcode: 0x40,
+      operand: 0,
+      addressMode: AddressMode.Immediate,
+    };
+    expect(() => encodeInstruction(ins)).toThrow(RangeError);
+  });
+
+  it("rejects out of range operand", () => {
+    let ins: Instruction = {
+      opcode: 0x01,
+      operand: 0x1_0000_0000,
+      addressMode: AddressMode.Immediate,
+    };
+    expect(() => encodeInstruction(ins)).toThrow(RangeError);
+  });
+
+  it("rejects invalid address mode", () => {
+    let ins: Instruction = {
+      opcode: 0,
+      operand: 0,
+      addressMode: 3 as AddressMode,
+    };
+    expect(() => encodeInstruction(ins)).toThrow(RangeError);
+  });
 });

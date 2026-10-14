@@ -27,5 +27,15 @@ export function decodeInstruction(ins: number): Instruction {
 }
 
 export function encodeInstruction(ins: Instruction): number {
+  if (ins.opcode < 0 || ins.opcode > 0x3f) {
+    throw new RangeError("Opcode must be a 6-bit number");
+  }
+  if (ins.operand < 0 || ins.operand > 0xffffff) {
+    throw new RangeError("Operand must be a 24-bit number");
+  }
+  if (ins.addressMode < AddressMode.Immediate || ins.addressMode > AddressMode.Indirect) {
+    throw new RangeError("Address mode must be one of Immediate = 0, Direct = 1, or Indirect = 2");
+  }
+
   return (ins.addressMode << 6) | (ins.opcode & 0x3f) | ((ins.operand & 0xffffff) << 8);
 }
