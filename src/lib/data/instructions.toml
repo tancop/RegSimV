@@ -1,0 +1,156 @@
+[[instruction]]
+
+name = "ADD"
+immediate = ["IR adr. => MBR", "mADD"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "mADD"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "mADD"]
+
+[[instruction]]
+
+name = "STORE"
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "ACC => MBR", "WRITE MEM"]
+indirect = [
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR adr. => MAR",
+  "ACC => MBR",
+  "WRITE MEM",
+]
+
+[[instruction]]
+
+name = "LOAD"
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR => ACC"]
+indirect = [
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR => ACC",
+]
+
+[[instruction]]
+
+name = "HALT"
+immediate = ["HALT"]
+
+[[instruction]]
+
+name = "SUB"
+immediate = ["IR adr. => MBR", "mSUB"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "mSUB"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "mSUB"]
+
+[[instruction]]
+
+name = "MUL"
+immediate = ["IR adr. => MBR", "mMUL"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "mMUL"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "mMUL"]
+
+[[instruction]]
+
+name = "DIV"
+immediate = ["IR adr. => MBR", "mDIV"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "mDIV"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "mDIV"]
+
+[[instruction]]
+
+name = "NOT"
+immediate = ["NOT ACC"]
+
+[[instruction]]
+
+name = "AND"
+immediate = ["IR adr. => MBR", "mAND"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "mAND"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "mAND"]
+
+[[instruction]]
+
+name = "OR"
+immediate = ["IR adr. => MBR", "mOR"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "mOR"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "mOR"]
+
+[[instruction]]
+
+name = "XOR"
+immediate = ["IR adr. => MBR", "mXOR"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "mXOR"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "mXOR"]
+
+[[instruction]]
+
+name = "CMP"
+immediate = ["IR adr. => MBR", "CMP"]
+direct = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "CMP"]
+indirect = ["IR adr. => MBR", "MBR adr. => MAR", "READ MEM", "MBR adr. => MAR", "READ MEM", "CMP"]
+
+[[instruction]]
+
+name = "JMP"
+immediate = ["IR adr. => MBR", "MBR adr. => PC"]
+
+[[instruction]]
+
+name = "JZ"
+immediate = ["IR adr. => MBR", "TEST ACC", "MBR adr. => PC"]
+
+[[instruction]]
+
+name = "JNZ"
+immediate = ["IR adr. => MBR", "TESTN ACC", "MBR adr. => PC"]
+
+[[instruction]]
+
+name = "INC"
+immediate = ["INCREMENT ACC"]
+
+[[instruction]]
+
+name = "DEC"
+immediate = ["DECREMENT ACC"]
+
+[[instruction]]
+
+name = "SHL"
+immediate = ["LSHIFT ACC"]
+
+[[instruction]]
+
+name = "SHR"
+immediate = ["RSHIFT ACC"]
+
+[[instruction]]
+
+name = "NOP"
+immediate = ["NOP"]
+
+[[instruction]]
+
+name = "JC"
+immediate = ["IR adr. => MBR", "TEST CF", "MBR adr. => PC"]
+
+[[instruction]]
+
+name = "JNC"
+immediate = ["IR adr. => MBR", "TESTN CF", "MBR adr. => PC"]
+
+[[instruction]]
+
+name = "SLV"
+immediate = ["LSHIFT ACC VF"]
+
+[[instruction]]
+
+name = "SRV"
+immediate = ["RSHIFT ACC VF"]
+
+[[instruction]]
+
+name = "CLSR"
+immediate = ["CLEAR SR"]
