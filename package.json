@@ -20,7 +20,6 @@
     "lint:fix": "oxlint --fix"
   },
   "devDependencies": {
-    "@sveltejs/adapter-auto": "^8.0.0",
     "@sveltejs/kit": "^3.0.0",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "@tailwindcss/vite": "^4.3.0",
@@ -41,5 +40,8 @@
       "version": "24.21.0",
       "onFail": "download"
     }
+  },
+  "dependencies": {
+    "@sveltejs/adapter-static": "^4.0.0"
   }
 }
