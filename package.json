@@ -15,7 +15,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:unit": "vitest",
-    "test": "npm run test:unit -- --run",
+    "test": "vitest run",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix"
   },
@@ -42,5 +42,8 @@
       "version": "24.21.0",
       "onFail": "download"
     }
+  },
+  "dependencies": {
+    "comptime.ts": "^0.8.1"
   }
 }

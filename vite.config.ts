@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { comptime } from "comptime.ts/vite";
 
 export default defineConfig({
   plugins: [
@@ -17,6 +18,7 @@ export default defineConfig({
       // Use static adapter to support GitHub Pages
       adapter: adapter(),
     }),
+    comptime(),
   ],
   test: {
     expect: { requireAssertions: true },
