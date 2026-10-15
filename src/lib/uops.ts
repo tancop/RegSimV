@@ -88,6 +88,7 @@ export const UOPS = {
     st.cf = st.acc < st.mbr;
     st.of = ((st.acc ^ st.mbr) & (st.acc ^ result) & 0x80000000) !== 0;
   },
+
   testAcc(st) {
     if (st.zf) {
       st.skipNext = true;
@@ -148,6 +149,9 @@ export const UOPS = {
 } satisfies UOps;
 
 export type UOp = keyof typeof UOPS;
+
+// List of UOps that might need to skip ahead
+export const BRANCHY_UOPS: UOp[] = ["testAcc", "testNotAcc", "testCf", "testNotCf"];
 
 // Maps ID to human readable name
 export const NAME_TO_UOP = {

@@ -1,5 +1,6 @@
+import type { Operation } from "./opcodes";
 import type { Simulator } from "./simulator";
-import type { UOp, UOps } from "./uops";
+import { BRANCHY_UOPS, type UOp, type UOps } from "./uops";
 
 export interface CompiledOperation {
   immediate?: (st: Simulator, ops: UOps) => IterableIterator<number>;
@@ -8,11 +9,25 @@ export interface CompiledOperation {
   isZeroArgument?: boolean;
 }
 
-export function compile(source: UOp[]): (st: Simulator, ops: UOps) => IterableIterator<number> {
-  let fnText = "(function* (st,ops) {";
+function compileVariant(source: UOp[]): (st: Simulator, ops: UOps) => IterableIterator<number> {
+  let fnText = "(function*(st,ops){";
   for (const op of source) {
+    if (BRANCHY_UOPS.includes(op)) {
+      fnText += `if(st.skipNext){st.skipNext=false;yield;}else{yield ops.${op}(st);}`;
+    }
     fnText += `yield ops.${op}(st);`;
   }
-  fnText += "})";
+  fnText += "})()";
   return new Function("st", "ops", fnText) as (st: Simulator) => IterableIterator<number>;
+}
+
+export function compile(op: Operation): CompiledOperation {
+  const result: CompiledOperation = {};
+
+  if (op.immediate) result.immediate = compileVariant(op.immediate);
+  if (op.direct) result.direct = compileVariant(op.direct);
+  if (op.indirect) result.indirect = compileVariant(op.indirect);
+  result.isZeroArgument = op.isZeroArgument;
+
+  return result;
 }
