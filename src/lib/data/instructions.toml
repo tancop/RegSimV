@@ -109,11 +109,55 @@ immediate = ["IR adr. => MBR", "TESTN ACC", "MBR adr. => PC"]
 
 name = "INC"
 immediate = ["INCREMENT ACC"]
+direct = [
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR => ACC",
+  "INCREMENT ACC",
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "WRITE MEM",
+]
+indirect = [
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR => ACC",
+  "INCREMENT ACC",
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "WRITE MEM",
+]
 
 [[instruction]]
 
 name = "DEC"
 immediate = ["DECREMENT ACC"]
+direct = [
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR => ACC",
+  "DECREMENT ACC",
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "WRITE MEM",
+]
+indirect = [
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR adr. => MAR",
+  "READ MEM",
+  "MBR => ACC",
+  "DECREMENT ACC",
+  "IR adr. => MBR",
+  "MBR adr. => MAR",
+  "WRITE MEM",
+]
 
 [[instruction]]
 
