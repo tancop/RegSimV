@@ -1,13 +1,14 @@
 <script lang="ts">
   import { assemble } from "#lib/assemble";
+  import { BUILTIN_OPCODES } from "#lib/opcodes.ts";
   import { Simulator } from "#lib/simulator";
 
-  const DEMO = `# Demo: 5 + 7 stored at 1024\nLOAD 0\nADD 5\nADD 7\nSTORE [1024]\nHALT`;
+  const DEMO = `# Demo: 5 + 7 stored at 1024\nLOAD [1024]\nADD 5\nADD 7\nSTORE [1024]\nHALT`;
 
-  let sim = new Simulator();
+  let sim = $state(new Simulator());
   let source = $state(DEMO);
   let error = $state("");
-  // Bumps on every mutation so class fields re-render.
+
   let tick = $state(0);
 
   function refresh() {
@@ -17,9 +18,9 @@
   function load() {
     error = "";
     try {
-      const program = assemble(source);
+      const program = assemble(source, BUILTIN_OPCODES);
       sim.reset();
-      sim.loadProgram(program);
+      sim.loadProgram(BUILTIN_OPCODES, program);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }
@@ -51,11 +52,6 @@
     sim.reset();
     refresh();
   }
-
-  // Keep tick referenced so template updates on mutation.
-  $effect(() => {
-    void tick;
-  });
 </script>
 
 <main class="mx-auto flex max-w-2xl flex-col gap-4 p-5">
@@ -79,18 +75,20 @@
     <p class="rounded border border-red-400 p-2 text-sm text-red-600">{error}</p>
   {/if}
 
-  <dl class="grid grid-cols-2 gap-1 font-mono text-sm sm:grid-cols-3">
-    <dt class="opacity-60">ACC</dt>
-    <dd>{sim.acc}</dd>
-    <dt class="opacity-60">PC</dt>
-    <dd>{sim.pc}</dd>
-    <dt class="opacity-60">IR</dt>
-    <dd>{sim.ir}</dd>
-    <dt class="opacity-60">Halted</dt>
-    <dd>{sim.halted ? "yes" : "no"}</dd>
-    <dt class="opacity-60">MEM[1024]</dt>
-    <dd>{sim.memory[1024]}</dd>
-    <dt class="opacity-60">MEM[1025]</dt>
-    <dd>{sim.memory[1025]}</dd>
-  </dl>
+  {#key tick}
+    <dl class="grid grid-cols-2 gap-1 font-mono text-sm sm:grid-cols-3">
+      <dt class="opacity-60">ACC</dt>
+      <dd>{sim.acc}</dd>
+      <dt class="opacity-60">PC</dt>
+      <dd>{sim.pc}</dd>
+      <dt class="opacity-60">IR</dt>
+      <dd>{sim.ir}</dd>
+      <dt class="opacity-60">Halted</dt>
+      <dd>{sim.halted ? "yes" : "no"}</dd>
+      <dt class="opacity-60">MEM[1024]</dt>
+      <dd>{sim.memory[1024]}</dd>
+      <dt class="opacity-60">MEM[1025]</dt>
+      <dd>{sim.memory[1025]}</dd>
+    </dl>
+  {/key}
 </main>
