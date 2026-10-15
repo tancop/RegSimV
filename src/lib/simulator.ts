@@ -1,5 +1,6 @@
-import { decodeInstruction } from "./encoding";
-import { BUILTIN_OPCODES, type Operation } from "./opcodes";
+import { decodeInstruction, type Instruction } from "./encoding";
+import { compile, type CompiledOperation } from "./jit";
+import type { Operation } from "./opcodes";
 
 export const MEMORY_SIZE = 2048;
 
@@ -11,16 +12,24 @@ export class Simulator {
   ir = 0;
   acc = 0;
 
-  // Flag register
-  sr = 0;
+  // Flags
+  cf = false; // Carry Flag
+  zf = false; // Zero Flag
+  sf = false; // Sign Flag
+  of = false; // Overflow Flag
 
   // Memory
   memory = new Uint32Array(MEMORY_SIZE);
   dataMemoryStart = 1024;
 
+  // Control
   halted = false;
+  skipNext = false;
 
-  opcodes: Record<string, Operation> = BUILTIN_OPCODES;
+  decodedInstruction?: Instruction;
+
+  compiledOps: CompiledOperation[] = [];
+  currentOp?: IterableIterator<number>;
 
   reset(): void {
     this.mar = 0;
@@ -28,12 +37,17 @@ export class Simulator {
     this.pc = 0;
     this.ir = 0;
     this.acc = 0;
-    this.sr = 0;
+    this.cf = false;
+    this.zf = false;
+    this.sf = false;
+    this.of = false;
     this.halted = false;
+    this.skipNext = false;
+    this.decodedInstruction = undefined;
     this.memory.fill(0);
   }
 
-  loadProgram(program: ArrayLike<number>, start = 0): void {
+  loadProgram(opcodes: Record<string, Operation>, program: ArrayLike<number>, start = 0): void {
     if (start < 0 || start + program.length > MEMORY_SIZE) {
       throw new RangeError("Program does not fit in memory");
     }
@@ -42,6 +56,10 @@ export class Simulator {
     }
     this.pc = start;
     this.halted = false;
+
+    for (const op of Object.values(opcodes)) {
+      this.compiledOps.push(compile(op));
+    }
   }
 
   checkAddress(addr: number): void {
@@ -50,7 +68,13 @@ export class Simulator {
     }
   }
 
-  /** Execute a single fetch-decode-execute cycle. No-op once halted. */
+  uStep(): void {
+    if (!this.currentOp) {
+      throw new Error("No current operation");
+    }
+    this.currentOp.next();
+  }
+
   step(): void {
     if (this.halted) return;
     this.checkAddress(this.pc);
@@ -60,7 +84,7 @@ export class Simulator {
 
     const { opcode, operand, addressMode } = decodeInstruction(raw);
 
-    // TODO
+    const compiledOp = this.compiledOps[opcode];
   }
 
   run(maxSteps = 10_000): number {

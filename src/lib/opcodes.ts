@@ -98,11 +98,11 @@ export const BUILTIN_OPCODES: Record<string, Operation> = {
   JNC: {
     immediate: ["irToMbr", "testNotCf", "mbrToPc"],
   },
-  SLV: {
-    immediate: ["lshiftAccVf"],
+  SLO: {
+    immediate: ["lshiftAccOf"],
   },
-  SRV: {
-    immediate: ["rshiftAccVf"],
+  SRO: {
+    immediate: ["rshiftAccOf"],
   },
   CLSR: {
     immediate: ["clearSr"],
