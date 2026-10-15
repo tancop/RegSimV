@@ -1,8 +1,11 @@
-import { decodeInstruction, type Instruction } from "./encoding";
-import { compile, type CompiledOperation } from "./jit";
+import { type Instruction } from "./encoding";
+import { compile, compileVariant, type CompiledOperation } from "./jit";
 import type { Operation } from "./opcodes";
+import { UOPS, type UOp } from "./uops";
 
 export const MEMORY_SIZE = 2048;
+
+const DECODE_SEQUENCE = ["pcToMar", "readMem", "mbrToIr", "incrementPc", "decode"] satisfies UOp[];
 
 export class Simulator {
   // Registers
@@ -30,6 +33,9 @@ export class Simulator {
 
   compiledOps: CompiledOperation[] = [];
   currentOp?: IterableIterator<number>;
+
+  decodeSequence: (st: Simulator, ops: typeof UOPS) => IterableIterator<number> =
+    compileVariant(DECODE_SEQUENCE);
 
   reset(): void {
     this.mar = 0;
@@ -68,23 +74,20 @@ export class Simulator {
     }
   }
 
-  uStep(): void {
+  // Returns true if instruction is complete, false if more steps are needed
+  uStep(): boolean {
+    if (this.halted) return true;
     if (!this.currentOp) {
       throw new Error("No current operation");
     }
-    this.currentOp.next();
+    const result = this.currentOp.next();
+    return result.done ?? false;
   }
 
   step(): void {
-    if (this.halted) return;
-    this.checkAddress(this.pc);
-    const raw = this.memory[this.pc];
-    this.ir = raw;
-    this.pc = (this.pc + 1) % MEMORY_SIZE;
-
-    const { opcode, operand, addressMode } = decodeInstruction(raw);
-
-    const compiledOp = this.compiledOps[opcode];
+    this.currentOp = this.decodeSequence(this, UOPS);
+    while (!this.uStep()) {} // decode instruction
+    while (!this.uStep()) {} // execute instruction
   }
 
   run(maxSteps = 10_000): number {

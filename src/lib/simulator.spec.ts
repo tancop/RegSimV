@@ -7,7 +7,7 @@ describe("simulator", () => {
   it("runs ADD immediate then HALT", () => {
     expect.assertions(2);
     const sim = new Simulator();
-    sim.loadProgram(assemble("ADD 5\nHALT", BUILTIN_OPCODES));
+    sim.loadProgram(BUILTIN_OPCODES, assemble("ADD 5\nHALT", BUILTIN_OPCODES));
     const steps = sim.run();
     expect(sim.acc).toBe(5);
     expect(steps).toBe(2);
@@ -16,7 +16,7 @@ describe("simulator", () => {
   it("rejects out-of-range memory access", () => {
     expect.assertions(1);
     const sim = new Simulator();
-    sim.loadProgram(assemble("LOAD [5000]", BUILTIN_OPCODES));
+    sim.loadProgram(BUILTIN_OPCODES, assemble("LOAD [5000]", BUILTIN_OPCODES));
     expect(() => sim.step()).toThrow(RangeError);
   });
 });

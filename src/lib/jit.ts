@@ -9,8 +9,10 @@ export interface CompiledOperation {
   isZeroArgument?: boolean;
 }
 
-function compileVariant(source: UOp[]): (st: Simulator, ops: UOps) => IterableIterator<number> {
-  let fnText = "(function*(st,ops){";
+export function compileVariant(
+  source: UOp[],
+): (st: Simulator, ops: UOps) => IterableIterator<number> {
+  let fnText = "return(function*(){";
   for (const op of source) {
     if (BRANCHY_UOPS.includes(op)) {
       fnText += `if(st.skipNext){st.skipNext=false;yield;}else{yield ops.${op}(st);}`;
