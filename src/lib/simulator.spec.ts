@@ -174,4 +174,126 @@ describe("simulator golden tests", () => {
     expect(sim.mar).toBe(9);
     expect(sim.mbr).toBe(3);
   });
+
+  it("runs zadanie4_53.regs", () => {
+    const sim = new Simulator();
+    sim.loadProgram(
+      BUILTIN_OPCODES,
+      program([
+        "JMP 31",
+        "LOAD [mem 425]",
+        "CMP 1",
+        "JC 15",
+        "CMP 2",
+        "JC 27",
+        "CMP 3",
+        "JC 19",
+        "CMP 4",
+        "JC 23",
+        "JNC 51",
+        "LOAD [425]",
+        "INC",
+        "STORE [425]",
+        "JMP 0",
+        "LOAD [301]",
+        "DEC",
+        "STORE [301]",
+        "JMP 11",
+        "LOAD [301]",
+        "INC",
+        "STORE [301]",
+        "JMP 11",
+        "LOAD [300]",
+        "DEC",
+        "STORE [300]",
+        "JMP 11",
+        "LOAD [300]",
+        "INC",
+        "STORE [300]",
+        "JMP 11",
+        "LOAD [301]",
+        "DEC",
+        "MUL 5",
+        "ADD [300]",
+        "DEC",
+        "ADD 400",
+        "STORE [303]",
+        "LOAD [mem 303]",
+        "JNZ 45",
+        "INC",
+        "STORE [mem 303]",
+        "LOAD [304]",
+        "INC",
+        "STORE [304]",
+        "CMP 12",
+        "JNC 50",
+        "LOAD [302]",
+        "INC",
+        "STORE [302]",
+        "JMP 1",
+        "HALT",
+      ]),
+    );
+
+    data(sim.memory, [
+      "@skipto 300",
+      2,
+      2,
+      0,
+      "@skipto 304",
+      5,
+      4,
+      1,
+      [2, 3],
+      3,
+      2,
+      1,
+      0,
+      "@skipto 400",
+      1,
+      [0, 4],
+      1,
+      [0, 4],
+      1,
+      [0, 4],
+      1,
+      [0, 4],
+      1,
+      [0, 4],
+      305,
+    ]);
+
+    sim.run();
+
+    checkMemory(sim.memory, [
+      "@skipto 300",
+      5,
+      1,
+      1,
+      404,
+      12,
+      4,
+      1,
+      [2, 3],
+      3,
+      2,
+      1,
+      0,
+      "@skipto 400",
+      [1, 7],
+      0,
+      [1, 3],
+      [0, 4],
+      1,
+      [0, 4],
+      1,
+      [0, 4],
+      313,
+    ]);
+
+    expect(sim.pc).toBe(52);
+    expect(sim.acc).toBe(0);
+    expect(sim.mar).toBe(51);
+    expect(sim.mbr).toBe(3);
+  });
 });
