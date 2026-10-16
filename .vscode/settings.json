@@ -1,5 +1,6 @@
 {
   "files.associations": {
     "*.css": "tailwindcss"
-  }
+  },
+  "bun.test.enable": false
 }
