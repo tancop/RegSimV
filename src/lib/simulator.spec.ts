@@ -41,7 +41,7 @@ function fillMemory(memory: Uint32Array, fields: Record<number, number>): Uint32
 
 function checkMemory(memory: Uint32Array, fields: Record<number, number>): void {
   for (const [address, value] of Object.entries(fields)) {
-    expect(memory[parseInt(address)]).toBe(value);
+    expect(memory[parseInt(address)], `memory[${address}]`).toBe(value);
   }
 }
 
