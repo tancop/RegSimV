@@ -13,11 +13,14 @@ export function compileVariant(
   source: UOp[],
 ): (st: Simulator, ops: UOps) => IterableIterator<number> {
   let fnText = "return(function*(){";
-  for (const op of source) {
-    if (BRANCHY_UOPS.includes(op)) {
+  for (let i = 0; i < source.length; i++) {
+    const op = source[i];
+    const prevIsBranchy = i > 0 && BRANCHY_UOPS.includes(source[i - 1]);
+    if (prevIsBranchy) {
       fnText += `if(st.skipNext){st.skipNext=false;yield;}else{yield ops.${op}(st);}`;
+    } else {
+      fnText += `yield ops.${op}(st);`;
     }
-    fnText += `yield ops.${op}(st);`;
   }
   fnText += "})()";
   return new Function("st", "ops", fnText) as (st: Simulator) => IterableIterator<number>;

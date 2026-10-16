@@ -69,10 +69,10 @@ export const BUILTIN_OPCODES: Record<string, Operation> = {
     immediate: ["irToMbr", "mbrToPc"],
   },
   JZ: {
-    immediate: ["irToMbr", "testAcc", "mbrToPc"],
+    immediate: ["irToMbr", "testNotAcc", "mbrToPc"],
   },
   JNZ: {
-    immediate: ["irToMbr", "testNotAcc", "mbrToPc"],
+    immediate: ["irToMbr", "testAcc", "mbrToPc"],
   },
   INC: {
     immediate: ["incrementAcc"],
@@ -141,10 +141,10 @@ export const BUILTIN_OPCODES: Record<string, Operation> = {
     isZeroArgument: true,
   },
   JC: {
-    immediate: ["irToMbr", "testCf", "mbrToPc"],
+    immediate: ["irToMbr", "testNotCf", "mbrToPc"],
   },
   JNC: {
-    immediate: ["irToMbr", "testNotCf", "mbrToPc"],
+    immediate: ["irToMbr", "testCf", "mbrToPc"],
   },
   SLO: {
     immediate: ["lshiftAccOf"],

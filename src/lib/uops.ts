@@ -26,7 +26,12 @@ export const UOPS = {
     st.ir = st.mbr;
   },
   irToMbr(st) {
-    st.mbr = decodeInstruction(st.ir).operand;
+    const operand = st.decodedInstruction?.operand;
+    if (operand !== undefined) {
+      st.mbr = operand;
+    } else {
+      throw new Error("No decoded instruction to get operand from");
+    }
   },
   marToMbr(st) {
     st.mbr = st.mar;
@@ -101,20 +106,16 @@ export const UOPS = {
   },
 
   cmp(st) {
-    const result = (st.acc - st.mbr) >>> 0;
-    st.zf = result === 0;
-    st.sf = (result & 0x80000000) !== 0;
-    st.cf = st.acc < st.mbr;
-    st.of = ((st.acc ^ st.mbr) & (st.acc ^ result) & 0x80000000) !== 0;
+    st.cf = st.acc == st.mbr;
   },
 
   testAcc(st) {
-    if (st.zf) {
+    if (st.acc === 0) {
       st.skipNext = true;
     }
   },
   testNotAcc(st) {
-    if (!st.zf) {
+    if (st.acc !== 0) {
       st.skipNext = true;
     }
   },
