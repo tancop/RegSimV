@@ -19,6 +19,17 @@ describe("simulator", () => {
     sim.loadProgram(BUILTIN_OPCODES, assemble("LOAD [5000]", BUILTIN_OPCODES));
     expect(() => sim.step()).toThrow(RangeError);
   });
+
+  it("runs loop with INC and CMP", () => {
+    const sim = new Simulator();
+    sim.loadProgram(
+      BUILTIN_OPCODES,
+      assemble("load [1024]\ncmp 5\njc 5\ninc [1024]\njmp 0\nhalt", BUILTIN_OPCODES),
+    );
+    sim.run();
+    expect(sim.halted).toBe(true);
+    expect(sim.memory[1024]).toBe(5);
+  });
 });
 
 function fillMemory(memory: Uint32Array, fields: Record<number, number>): Uint32Array {
