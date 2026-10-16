@@ -8,7 +8,7 @@
   let sim = $state(new Simulator());
   let source = $state(DEMO);
   let error = $state("");
-
+  let data = $state("");
   let tick = $state(0);
 
   function refresh() {
@@ -21,6 +21,14 @@
       const program = assemble(source, BUILTIN_OPCODES);
       sim.reset();
       sim.loadProgram(BUILTIN_OPCODES, program);
+      for (const line of data.split("\n")) {
+        const [addressStr, valueStr] = line.split(" ");
+        if (addressStr && valueStr) {
+          const address = parseInt(addressStr.trim(), 10);
+          const value = parseInt(valueStr.trim(), 10);
+          sim.memory[address] = value;
+        }
+      }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }
@@ -57,10 +65,17 @@
 <main class="mx-auto flex max-w-2xl flex-col gap-4 p-5">
   <h1 class="text-3xl font-bold">RegSim</h1>
 
-  <label class="flex flex-col gap-1">
-    <span class="text-sm font-medium">Program</span>
-    <textarea class="min-h-40 rounded border p-2 font-mono text-sm" bind:value={source}></textarea>
-  </label>
+  <div class="flex">
+    <label class="flex flex-col gap-1">
+      <span class="text-sm font-medium">Program</span>
+      <textarea class="min-h-40 rounded border p-2 font-mono text-sm" bind:value={source}
+      ></textarea>
+    </label>
+    <label class="flex flex-col gap-1">
+      <span class="text-sm font-medium">Data</span>
+      <textarea class="min-h-40 rounded border p-2 font-mono text-sm" bind:value={data}></textarea>
+    </label>
+  </div>
 
   <div class="flex flex-wrap gap-2">
     <button class="rounded bg-blue-600 px-3 py-1 text-white" onclick={load}
@@ -76,7 +91,7 @@
   {/if}
 
   {#key tick}
-    <dl class="grid grid-cols-2 gap-1 font-mono text-sm sm:grid-cols-3">
+    <dl class="grid grid-cols-2 gap-1 font-mono text-sm">
       <dt class="opacity-60">ACC</dt>
       <dd>{sim.acc}</dd>
       <dt class="opacity-60">PC</dt>
