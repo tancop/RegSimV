@@ -32,16 +32,55 @@ describe("simulator", () => {
   });
 });
 
-function fillMemory(memory: Uint32Array, fields: Record<number, number>): Uint32Array {
-  for (const [address, value] of Object.entries(fields)) {
-    memory[parseInt(address)] = value;
+type DataChunk = number | [value: number, count: number] | string;
+
+function parseSkipto(chunk: string, memoryLength: number): number {
+  const trimmed = chunk.trim();
+  if (!trimmed.startsWith("@skipto ")) {
+    throw new Error(`Unknown data directive "${chunk}" (supported: "@skipto n")`);
+  }
+  const target = parseInt(trimmed.slice(8).trim(), 10);
+  if (!Number.isInteger(target) || target < 0 || target > memoryLength) {
+    throw new RangeError(`@skipto target out of range: ${trimmed.slice(8).trim()}`);
+  }
+  return target;
+}
+
+function* walkChunks(chunks: DataChunk[], memoryLength: number): Generator<[number, number]> {
+  let cursor = 0;
+  for (const chunk of chunks) {
+    if (typeof chunk === "number") {
+      if (cursor < 0 || cursor >= memoryLength) {
+        throw new RangeError(`Data address out of range: ${cursor}`);
+      }
+      yield [cursor++, chunk];
+    } else if (Array.isArray(chunk)) {
+      const [value, count] = chunk;
+      if (!Number.isInteger(count) || count < 0) {
+        throw new Error(`Repeat count must be a non-negative integer, got ${count}`);
+      }
+      for (let i = 0; i < count; i++) {
+        if (cursor < 0 || cursor >= memoryLength) {
+          throw new RangeError(`Data address out of range: ${cursor}`);
+        }
+        yield [cursor++, value];
+      }
+    } else {
+      cursor = parseSkipto(chunk, memoryLength);
+    }
+  }
+}
+
+function data(memory: Uint32Array, chunks: DataChunk[]): Uint32Array {
+  for (const [address, value] of walkChunks(chunks, memory.length)) {
+    memory[address] = value;
   }
   return memory;
 }
 
-function checkMemory(memory: Uint32Array, fields: Record<number, number>): void {
-  for (const [address, value] of Object.entries(fields)) {
-    expect(memory[parseInt(address)], `memory[${address}]`).toBe(value);
+function checkMemory(memory: Uint32Array, chunks: DataChunk[]): void {
+  for (const [address, value] of walkChunks(chunks, memory.length)) {
+    expect(memory[address], `memory[${address}]`).toBe(value);
   }
 }
 
@@ -113,38 +152,22 @@ describe("simulator golden tests", () => {
       0,
     );
 
-    const initialMemory = {
-      300: 3,
-      301: 3,
-      302: 305,
-      305: 1,
-      306: 1,
-      307: 1,
-      308: 2,
-      309: 2,
-      310: 2,
-      311: 3,
-      312: 3,
-      313: 3,
-      314: 3,
-      315: 3,
-      316: 4,
-      317: 4,
-      318: 4,
-      319: 4,
-      320: 4,
-      321: 0,
-    };
-    fillMemory(sim.memory, initialMemory);
+    data(sim.memory, ["@skipto 300", 3, 3, 305, "@skipto 305", [1, 3], [2, 3], [3, 5], [4, 5], 0]);
 
     sim.run();
 
-    const finalMemory = initialMemory;
-    finalMemory[300] = 5;
-    finalMemory[301] = 1;
-    finalMemory[302] = 321;
-
-    checkMemory(sim.memory, finalMemory);
+    checkMemory(sim.memory, [
+      "@skipto 300",
+      5,
+      1,
+      321,
+      "@skipto 305",
+      [1, 3],
+      [2, 3],
+      [3, 5],
+      [4, 5],
+      0,
+    ]);
 
     expect(sim.pc).toBe(10);
     expect(sim.acc).toBe(0);
