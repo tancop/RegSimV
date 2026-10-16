@@ -46,17 +46,23 @@ function checkMemory(memory: Uint32Array, fields: Record<number, number>): void 
 }
 
 function program(lines: string[]): number[] {
-  return assemble(
-    lines
-      .flatMap((line, idx) => {
-        if (line.trim().startsWith("@skipto ")) {
-          return Array.from({ length: parseInt(line.slice(8)) - idx }, () => "NOP");
-        }
-        return [line];
-      })
-      .join("\n"),
-    BUILTIN_OPCODES,
-  );
+  const expanded: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("@skipto ")) {
+      const target = parseInt(trimmed.slice(8).trim(), 10);
+      const pad = target - expanded.length;
+      if (!Number.isInteger(target) || pad < 0) {
+        throw new Error(
+          `@skipto target ${trimmed.slice(8).trim()} is behind current address ${expanded.length}`,
+        );
+      }
+      expanded.push(...Array.from({ length: pad }, () => "NOP"));
+    } else {
+      expanded.push(line);
+    }
+  }
+  return assemble(expanded.join("\n"), BUILTIN_OPCODES);
 }
 
 describe("simulator golden tests", () => {
