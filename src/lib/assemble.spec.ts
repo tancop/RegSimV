@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assemble } from "./assemble";
+import { assemble, AssembleError, AssembleErrorType } from "./assemble";
 import { AddressMode, decodeInstruction, type Instruction } from "./encoding";
 import { BUILTIN_OPCODES } from "./opcodes";
 import { Simulator } from "./simulator";
@@ -9,6 +9,17 @@ function assembleOne(source: string): Instruction {
   const words = assemble(source, BUILTIN_OPCODES);
   expect(words).toHaveLength(1);
   return decodeInstruction(words[0]);
+}
+
+/** Assembles source and returns the thrown AssembleError (fails the test otherwise). */
+function assembleError(source: string): AssembleError {
+  try {
+    assemble(source, BUILTIN_OPCODES);
+  } catch (error) {
+    if (error instanceof AssembleError) return error;
+    throw error; // unexpected error type
+  }
+  throw new Error(`expected assemble(${JSON.stringify(source)}) to throw an AssembleError`);
 }
 
 describe("assemble", () => {
@@ -129,72 +140,54 @@ describe("assemble", () => {
 
   it("rejects an unknown mnemonic", () => {
     expect.assertions(1);
-    expect(() => assemble("frobnicate 5", BUILTIN_OPCODES)).toThrow(
-      'Line 1: unknown mnemonic "frobnicate"',
-    );
+    expect(assembleError("frobnicate 5").type).toBe(AssembleErrorType.UnknownMnemonic);
   });
 
   it("rejects a missing operand", () => {
     expect.assertions(2);
-    expect(() => assemble("add", BUILTIN_OPCODES)).toThrow("Line 1: ADD needs an operand");
-    expect(() => assemble("load", BUILTIN_OPCODES)).toThrow("Line 1: LOAD needs an operand");
+    expect(assembleError("add").type).toBe(AssembleErrorType.MissingOperand);
+    expect(assembleError("load").type).toBe(AssembleErrorType.MissingOperand);
   });
 
   it("rejects malformed bracket operands", () => {
     expect.assertions(3);
-    expect(() => assemble("load [mem]", BUILTIN_OPCODES)).toThrow(
-      'Line 1: malformed operand "[mem]"',
-    );
-    expect(() => assemble("load [mem abc]", BUILTIN_OPCODES)).toThrow(
-      'Line 1: malformed operand "[mem abc]"',
-    );
-    expect(() => assemble("load [x]", BUILTIN_OPCODES)).toThrow('Line 1: malformed operand "[x]"');
+    expect(assembleError("load [mem]").type).toBe(AssembleErrorType.MalformedOperand);
+    expect(assembleError("load [mem abc]").type).toBe(AssembleErrorType.MalformedOperand);
+    expect(assembleError("load [x]").type).toBe(AssembleErrorType.MalformedOperand);
   });
 
   it("rejects non-integer operands", () => {
     expect.assertions(2);
-    expect(() => assemble("add -1", BUILTIN_OPCODES)).toThrow(
-      "Line 1: operand must be an integer 0..16777215",
-    );
-    expect(() => assemble("add 1.5", BUILTIN_OPCODES)).toThrow(
-      "Line 1: operand must be an integer 0..16777215",
-    );
+    expect(assembleError("add -1").type).toBe(AssembleErrorType.InvalidOperand);
+    expect(assembleError("add 1.5").type).toBe(AssembleErrorType.InvalidOperand);
   });
 
   it("rejects operands over 24 bits", () => {
     expect.assertions(1);
-    expect(() => assemble("add 16777216", BUILTIN_OPCODES)).toThrow(
-      "Line 1: operand must be an integer 0..16777215",
-    );
+    expect(assembleError("add 16777216").type).toBe(AssembleErrorType.InvalidOperand);
   });
 
   it("reports the line number of the offending line", () => {
-    expect.assertions(1);
-    expect(() => assemble("add 5\nload [x]", BUILTIN_OPCODES)).toThrow("Line 2: malformed operand");
+    expect.assertions(2);
+    const error = assembleError("add 5\nload [x]");
+    expect(error.type).toBe(AssembleErrorType.MalformedOperand);
+    expect(error.line).toBe(2);
   });
 
   it("rejects an address mode the instruction does not support", () => {
     expect.assertions(4);
-    expect(() => assemble("store 1025", BUILTIN_OPCODES)).toThrow(
-      "Line 1: STORE does not support the immediate address mode (supported: direct, indirect)",
-    );
-    expect(() => assemble("jmp [5]", BUILTIN_OPCODES)).toThrow(
-      "Line 1: JMP does not support the direct address mode (supported: immediate)",
-    );
-    expect(() => assemble("shl [mem 5]", BUILTIN_OPCODES)).toThrow(
-      "Line 1: SHL does not support the indirect address mode (supported: immediate)",
-    );
+    expect(assembleError("store 1025").type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(assembleError("jmp [5]").type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(assembleError("shl [mem 5]").type).toBe(AssembleErrorType.UnsupportedAddressMode);
     // zero-argument instructions only accept the operand-less immediate form
-    expect(() => assemble("halt [5]", BUILTIN_OPCODES)).toThrow(
-      "Line 1: HALT does not support the direct address mode (supported: immediate)",
-    );
+    expect(assembleError("halt [5]").type).toBe(AssembleErrorType.UnsupportedAddressMode);
   });
 
   it("reports the line number of an unsupported address mode", () => {
-    expect.assertions(1);
-    expect(() => assemble("add 5\nstore 6", BUILTIN_OPCODES)).toThrow(
-      "Line 2: STORE does not support the immediate address mode",
-    );
+    expect.assertions(2);
+    const error = assembleError("add 5\nstore 6");
+    expect(error.type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(error.line).toBe(2);
   });
 
   it("loadProgram stores ACC through the pointer given by [mem x]", () => {
@@ -208,5 +201,41 @@ describe("assemble", () => {
     expect(sim.halted).toBe(true);
     expect(sim.memory[1026]).toBe(7); // stored through the pointer, not at 1025
     expect(sim.memory[1025]).toBe(1026); // pointer cell itself untouched
+  });
+
+  it("rejects label starting with number", () => {
+    expect.assertions(1);
+    expect(assembleError("6ix9ine: nop").type).toBe(AssembleErrorType.InvalidLabel);
+  });
+
+  it("accepts label including number", () => {
+    expect(() => assemble("agent47: nop", BUILTIN_OPCODES)).not.toThrow();
+  });
+
+  it("rejects double label", () => {
+    expect.assertions(1);
+    expect(assembleError("first: second: nop").type).toBe(AssembleErrorType.TooManyColons);
+  });
+
+  it("assembles program with jump to label correctly", () => {
+    const sim = new Simulator();
+
+    sim.loadProgram(
+      BUILTIN_OPCODES,
+      assemble(
+        "start: load [1024]\ncmp 5\njc end\ninc [1024]\ninc [1025]\njmp start\nend: halt",
+        BUILTIN_OPCODES,
+      ),
+    );
+
+    sim.run();
+
+    expect(sim.halted).toBe(true);
+    expect(sim.memory[1025]).toBe(5);
+  });
+
+  it("rejects jump to unknown label", () => {
+    expect.assertions(1);
+    expect(assembleError("jmp test").type).toBe(AssembleErrorType.InvalidOperand);
   });
 });

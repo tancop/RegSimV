@@ -1,6 +1,42 @@
 import { AddressMode, encodeInstruction } from "./encoding";
 import { opcodeNumber, type Operation } from "./opcodes";
 
+/** Machine-readable classification of an assembly failure. */
+export enum AssembleErrorType {
+  /** A line contains more than one `:` label separator. */
+  TooManyColons = "too-many-colons",
+  /** A label is empty or starts with a digit. */
+  InvalidLabel = "invalid-label",
+  /** The mnemonic is not in the supplied opcode table. */
+  UnknownMnemonic = "unknown-mnemonic",
+  /** The instruction requires an operand but none was given. */
+  MissingOperand = "missing-operand",
+  /** The instruction has no uops for the operand's address mode. */
+  UnsupportedAddressMode = "unsupported-address-mode",
+  /** A bracketed operand is neither a label nor an integer. */
+  MalformedOperand = "malformed-operand",
+  /** The operand is neither a label nor an integer in `0..16777215`. */
+  InvalidOperand = "invalid-operand",
+}
+
+/**
+ * Error thrown by {@link assemble} when the source cannot be assembled.
+ * `type` and `line` are stable and safe to branch on; `message` is
+ * human-readable and subject to change.
+ */
+export class AssembleError extends Error {
+  readonly type: AssembleErrorType;
+  /** 1-based number of the source line the error occurred on. */
+  readonly line: number;
+
+  constructor(type: AssembleErrorType, line: number, message: string) {
+    super(message);
+    this.name = "AssembleError";
+    this.type = type;
+    this.line = line;
+  }
+}
+
 /** Address mode -> the `Operation` key holding the uops for that mode. */
 const MODE_KEYS = {
   [AddressMode.Immediate]: "immediate",
@@ -21,7 +57,9 @@ function assertModeSupported(
   const modeKey: ModeKey = MODE_KEYS[addressMode];
   if (op[modeKey] === undefined) {
     const supported = ALL_MODE_KEYS.filter((key) => op[key] !== undefined);
-    throw new Error(
+    throw new AssembleError(
+      AssembleErrorType.UnsupportedAddressMode,
+      lineNumber,
       `Line ${lineNumber}: ${mnemonic} does not support the ${modeKey} address mode` +
         ` (supported: ${supported.length > 0 ? supported.join(", ") : "none"})`,
     );
@@ -34,11 +72,40 @@ function assertModeSupported(
  * `[mem x]` = indirect (whitespace inside brackets is flexible,
  * e.g. `[mem 302]`, `[mem302]`, `[ mem 302 ]`), bare number = immediate.
  * `#` starts a comment. Returns 32-bit words.
- * Throws if the instruction has no uops for the chosen address mode.
+ * Throws {@link AssembleError} on invalid input; see {@link AssembleErrorType}.
  */
 export function assemble(source: string, opcodes: Record<string, Operation>): number[] {
   const program: number[] = [];
   const lines = source.split("\n");
+  const labels: Record<string, number> = {};
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].split("#")[0].trim();
+    if (!line) continue;
+
+    const [label, rest, bad] = line.split(":").map((s) => s.trim());
+
+    if (bad) {
+      throw new AssembleError(
+        AssembleErrorType.TooManyColons,
+        i + 1,
+        `Line ${i + 1}: too many ':' characters on line`,
+      );
+    }
+
+    if (rest) {
+      if (label.length === 0 || /\d/.test(label[0])) {
+        throw new AssembleError(
+          AssembleErrorType.InvalidLabel,
+          i + 1,
+          `Line ${i + 1}: invalid label "${label}" (labels cannot be empty or start with a digit)`,
+        );
+      }
+
+      labels[label.toLowerCase()] = i;
+      lines[i] = rest;
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].split("#")[0].trim();
@@ -52,7 +119,9 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
     const op = opcodes[mnemonic];
 
     if (op === undefined) {
-      throw new Error(
+      throw new AssembleError(
+        AssembleErrorType.UnknownMnemonic,
+        i + 1,
         `Line ${i + 1}: unknown mnemonic "${mnemonicRaw}" (supported: ${Object.keys(opcodes).join(", ")})`,
       );
     }
@@ -63,34 +132,62 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
     if (op.isZeroArgument && operandRaw === undefined) {
       addressMode = AddressMode.Immediate;
     } else {
-      if (operandRaw === undefined) throw new Error(`Line ${i + 1}: ${mnemonic} needs an operand`);
+      if (operandRaw === undefined) {
+        throw new AssembleError(
+          AssembleErrorType.MissingOperand,
+          i + 1,
+          `Line ${i + 1}: ${mnemonic} needs an operand`,
+        );
+      }
 
       addressMode = AddressMode.Immediate;
 
-      const indirectMatch = operandRaw.match(/^\[\s*mem\s*(\d+)\s*\]$/i);
-      const directMatch = operandRaw.match(/^\[\s*(\d+)\s*\]$/);
+      const indirectMatch = operandRaw.match(/^\[\s*mem\s*([a-z0-9]+)\s*\]$/i);
+      const directMatch = operandRaw.match(/^\[\s*([a-z0-9]+)\s*\]$/);
+
       if (indirectMatch) {
         addressMode = AddressMode.Indirect;
         text = indirectMatch[1];
       } else if (directMatch) {
         addressMode = AddressMode.Direct;
         text = directMatch[1];
-      } else if (/^\d+$/.test(operandRaw)) {
-        text = operandRaw;
-      } else if (operandRaw.startsWith("[") && operandRaw.endsWith("]")) {
-        throw new Error(`Line ${i + 1}: malformed operand "${operandRaw}"`);
+      } else if (operandRaw.startsWith("[")) {
+        // Bracketed operand that matches neither `[x]` nor `[mem x]`.
+        throw new AssembleError(
+          AssembleErrorType.MalformedOperand,
+          i + 1,
+          `Line ${i + 1}: malformed operand "${operandRaw}"`,
+        );
       } else {
-        throw new Error(`Line ${i + 1}: operand must be an integer 0..16777215`);
+        text = operandRaw;
       }
     }
 
     assertModeSupported(op, addressMode, mnemonic, i + 1);
 
     let operand = 0;
+
     if (text !== undefined) {
-      operand = parseInt(text, 10);
-      if (!Number.isInteger(operand) || operand < 0 || operand > 0xffffff) {
-        throw new Error(`Line ${i + 1}: operand must be an integer 0..16777215`);
+      const bracketed = addressMode !== AddressMode.Immediate;
+      const digits = /^\d+$/.test(text);
+      const parsed = digits ? Number(text) : Number.NaN;
+
+      if (labels[text] !== undefined) {
+        operand = labels[text];
+      } else if (digits && parsed <= 0xffffff) {
+        operand = parsed;
+      } else if (bracketed && !digits) {
+        throw new AssembleError(
+          AssembleErrorType.MalformedOperand,
+          i + 1,
+          `Line ${i + 1}: malformed operand "${operandRaw}"`,
+        );
+      } else {
+        throw new AssembleError(
+          AssembleErrorType.InvalidOperand,
+          i + 1,
+          `Line ${i + 1}: operand must be a label or an integer 0..16777215`,
+        );
       }
     }
 
