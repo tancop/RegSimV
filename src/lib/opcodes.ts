@@ -1,5 +1,4 @@
 import type { UOp } from "./uops";
-import { comptime } from "comptime.ts" with { type: "comptime" };
 
 export interface Operation {
   immediate?: UOp[];

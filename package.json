@@ -42,8 +42,5 @@
       "version": "24.21.0",
       "onFail": "download"
     }
-  },
-  "dependencies": {
-    "comptime.ts": "^0.8.1"
   }
 }
