@@ -31,26 +31,46 @@ describe("simulator", () => {
     expect(sim.memory[1024]).toBe(5);
   });
 
-  it("runs 1000 loops in less than 100 ms", () => {
+  it("runs 1 million loops in less than 100 ms", () => {
+    // Split into nested loops because of limited memory
+    const innerCount = 1000;
+    const outerCount = 1000;
+
     const sim = new Simulator();
     sim.loadProgram(
       BUILTIN_OPCODES,
-      assemble(
-        "load [1024]\ncmp 1000\njc 7\nstore [mem 1025]\ninc [1025]\ninc [1024]\njmp 0\nhalt",
-        BUILTIN_OPCODES,
-      ),
+      program([
+        "outer: load [1026]",
+        `cmp ${outerCount}`,
+        "jc end",
+        "inc [1026]",
+
+        "inner: load [1024]",
+        `cmp ${innerCount}`,
+        "jc outer",
+        "store [mem 1025]",
+        "inc [1025]",
+        "inc [1024]",
+        "jmp inner",
+
+        "jmp outer",
+
+        "end: halt",
+      ]),
     );
 
-    data(sim.memory, ["@skipto 1024", 0, 1026]);
+    data(sim.memory, ["@skipto 1024", 0, 1027, 0]);
 
     performance.mark("start");
-    sim.run();
+    sim.run(1000000);
     performance.mark("end");
 
     expect(sim.halted).toBe(true);
+    expect(sim.memory[1024]).toBe(innerCount);
+    expect(sim.memory[1026]).toBe(outerCount);
 
     const total = performance.measure("duration", "start", "end").duration;
-    console.log(`speed test took ${total.toFixed(3)} ms`);
+    console.log(`speed test: ${outerCount * innerCount} loops took ${total.toFixed(3)} ms`);
     expect(total).toBeLessThan(100);
   });
 });
