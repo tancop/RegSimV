@@ -30,6 +30,29 @@ describe("simulator", () => {
     expect(sim.halted).toBe(true);
     expect(sim.memory[1024]).toBe(5);
   });
+
+  it("runs 1000 loops in less than 100 ms", () => {
+    const sim = new Simulator();
+    sim.loadProgram(
+      BUILTIN_OPCODES,
+      assemble(
+        "load [1024]\ncmp 1000\njc 7\nstore [mem 1025]\ninc [1025]\ninc [1024]\njmp 0\nhalt",
+        BUILTIN_OPCODES,
+      ),
+    );
+
+    data(sim.memory, ["@skipto 1024", 0, 1026]);
+
+    performance.mark("start");
+    sim.run();
+    performance.mark("end");
+
+    expect(sim.halted).toBe(true);
+
+    const total = performance.measure("duration", "start", "end").duration;
+    console.log(`speed test took ${total.toFixed(3)} ms`);
+    expect(total).toBeLessThan(100);
+  });
 });
 
 type DataChunk = number | [value: number, count: number] | string;
