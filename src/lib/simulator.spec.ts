@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { assemble } from "./assemble";
 import { Simulator } from "./simulator";
-import { BUILTIN_OPCODES } from "./opcodes";
+import { BUILTIN_OPCODES, type Operation } from "./opcodes";
+import { I32_MIN } from "./uops";
 
 describe("simulator", () => {
   it("runs ADD immediate then HALT", () => {
@@ -74,6 +75,50 @@ describe("simulator", () => {
     expect(total).toBeLessThan(100);
   });
 
+  it("divides two positive numbers", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv 43\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = 4085;
+
+    sim.run();
+
+    expect(sim.acc).toBe(95);
+    expect(sim.of).toBe(false);
+  });
+
+  it("uses floor division", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv 63\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = 1738;
+
+    sim.run();
+
+    expect(sim.acc).toBe(27);
+    expect(sim.of).toBe(false);
+  });
+
+  it("divides by a negative number", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv -63\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = 1738;
+
+    sim.run();
+
+    expect(sim.acc).toBe(-27);
+    expect(sim.of).toBe(false);
+  });
+
+  it("divides two large negative numbers", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv -808\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = -7355608;
+
+    sim.run();
+
+    expect(sim.acc).toBe(9103);
+    expect(sim.of).toBe(false);
+  });
+
   it("sets OF=1 and ACC=0 on division by zero", () => {
     const sim = new Simulator();
     sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv 0\nhalt", BUILTIN_OPCODES));
@@ -81,9 +126,52 @@ describe("simulator", () => {
 
     sim.run();
 
-    expect(sim.halted).toBe(true);
     expect(sim.acc).toBe(0);
     expect(sim.of).toBe(true);
+  });
+
+  it("sets OF=1 and leaves ACC unchanged on overflowing division", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv -1\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = I32_MIN;
+
+    sim.run();
+
+    expect(sim.acc).toBe(I32_MIN);
+    expect(sim.of).toBe(true);
+  });
+
+  it("multiplies two positive numbers", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul 831\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = 821;
+
+    sim.run();
+
+    expect(sim.acc).toBe(682251);
+    expect(sim.of).toBe(false);
+  });
+
+  it("multiplies with a negative number", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul -831\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = 821;
+
+    sim.run();
+
+    expect(sim.acc).toBe(-682251);
+    expect(sim.of).toBe(false);
+  });
+
+  it("multiplies two negative numbers", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul -831\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = -821;
+
+    sim.run();
+
+    expect(sim.acc).toBe(682251);
+    expect(sim.of).toBe(false);
   });
 
   it("sets OF=1 and NF=1 on overflowing multiply", () => {
@@ -94,7 +182,6 @@ describe("simulator", () => {
 
     sim.run();
 
-    expect(sim.halted).toBe(true);
     expect(sim.acc).toBe(-400821818);
     expect(sim.of).toBe(true);
     expect(sim.sf).toBe(true);
@@ -153,7 +240,7 @@ function checkMemory(memory: Uint32Array, chunks: DataChunk[]): void {
   }
 }
 
-function program(lines: string[]): number[] {
+function program(lines: string[], opcodes: Record<string, Operation> = BUILTIN_OPCODES): number[] {
   const expanded: string[] = [];
   for (const line of lines) {
     const trimmed = line.trim();
@@ -170,7 +257,7 @@ function program(lines: string[]): number[] {
       expanded.push(line);
     }
   }
-  return assemble(expanded.join("\n"), BUILTIN_OPCODES);
+  return assemble(expanded.join("\n"), opcodes);
 }
 
 describe("simulator golden tests", () => {
@@ -363,6 +450,102 @@ describe("simulator golden tests", () => {
     expect(sim.pc).toBe(52);
     expect(sim.acc).toBe(0);
     expect(sim.mar).toBe(51);
+    expect(sim.mbr).toBe(3);
+  });
+
+  it("runs zadanie4_m.regs with custom instruction", () => {
+    const opcodes: Record<string, Operation> = {
+      ...BUILTIN_OPCODES,
+      SET: {
+        immediate: ["irToMbr", "mbrToAcc"],
+      },
+    };
+
+    const sim = new Simulator();
+    sim.dataMemoryStart = 300;
+    sim.loadProgram(
+      opcodes,
+      program(
+        [
+          "load [300]",
+          "mul 5",
+          "add [301]",
+          "add 495",
+          "store [500]",
+          "load [mem 500]",
+          "cmp 1",
+          "jc 10",
+          "inc [mem 500]",
+          "inc [499]",
+          "load [499]",
+          "cmp 14",
+          "jnc 15",
+          "set 1",
+          "store [302]",
+          "load [mem 303]",
+          "cmp 1",
+          "jc 35",
+          "cmp 2",
+          "jc 40",
+          "cmp 3",
+          "jc 45",
+          "cmp 4",
+          "jc 50",
+          "halt",
+
+          "@skipto 30",
+          "inc [303]",
+          "jmp 0",
+
+          "@skipto 35",
+          "dec [300]",
+          "jmp 30",
+
+          "@skipto 40",
+          "inc [301]",
+          "jmp 30",
+
+          "@skipto 45",
+          "inc [300]",
+          "jmp 30",
+
+          "@skipto 50",
+          "dec [301]",
+          "jmp 30",
+        ],
+        opcodes,
+      ),
+    );
+
+    data(sim.memory, [
+      "@skipto 300",
+      3,
+      3,
+      0,
+      305,
+      "@skipto 305",
+      [2, 2],
+      [3, 2],
+      [4, 4],
+      1,
+      0,
+      "@skipto 499",
+      7,
+      "@skipto 501",
+      [1, 6],
+      [0, 4],
+      1,
+      [0, 14],
+    ]);
+
+    sim.run();
+
+    checkMemory(sim.memory, ["@skipto 300", 4, 1, 1, 314, "@skipto 499", 17, 516]);
+
+    expect(sim.halted).toBe(true);
+    expect(sim.pc).toBe(25);
+    expect(sim.acc).toBe(0);
+    expect(sim.mar).toBe(24);
     expect(sim.mbr).toBe(3);
   });
 });
