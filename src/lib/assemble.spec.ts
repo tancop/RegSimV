@@ -246,4 +246,9 @@ describe("assemble", () => {
     expect.assertions(1);
     expect(assembleError("jmp test").type).toBe(AssembleErrorType.InvalidOperand);
   });
+
+  it("rejects broken operand with trailing bracket as malformed", () => {
+    expect.assertions(1);
+    expect(assembleError("load 1024]").type).toBe(AssembleErrorType.MalformedOperand);
+  });
 });

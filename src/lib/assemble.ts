@@ -159,8 +159,9 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
       } else if (directMatch) {
         addressMode = AddressMode.Direct;
         text = directMatch[1];
-      } else if (operandRaw.startsWith("[")) {
-        // Bracketed operand that matches neither `[x]` nor `[mem x]`.
+      } else if (operandRaw.includes("[") || operandRaw.includes("]")) {
+        // Bracket characters that do not form a valid `[x]` or `[mem x]`
+        // operand, e.g. `[mem]`, `[x]`, or an unbalanced `1024]`.
         throw new AssembleError(
           AssembleErrorType.MalformedOperand,
           i + 1,
