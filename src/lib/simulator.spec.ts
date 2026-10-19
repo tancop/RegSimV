@@ -548,4 +548,121 @@ describe("simulator golden tests", () => {
     expect(sim.mar).toBe(24);
     expect(sim.mbr).toBe(3);
   });
+
+  it("runs zadanie4_p.regs", () => {
+    const sim = new Simulator();
+    sim.dataMemoryStart = 300;
+    sim.loadProgram(
+      BUILTIN_OPCODES,
+      program([
+        "load [300]",
+        "cmp 5",
+        "jc 9",
+        "cmp 3",
+        "jc 13",
+        "cmp 2",
+        "jc 17",
+        "jmp 33",
+
+        "@skipto 9",
+        "load [301]",
+        "cmp 1",
+        "jc 23",
+        "jmp 33",
+        "load [301]",
+        "cmp 3",
+        "jc 23",
+        "jmp 33",
+        "load [301]",
+        "cmp 4",
+        "jc 29",
+        "jmp 33",
+
+        "@skipto 23",
+        "load [302]",
+        "add 2",
+        "store [302]",
+        "halt",
+
+        "@skipto 29",
+        "inc [302]",
+        "halt",
+
+        "@skipto 33",
+        "load [mem 303]",
+        "cmp 1",
+        "jc 46",
+        "cmp 2",
+        "jc 62",
+        "cmp 3",
+        "jc 71",
+        "cmp 4",
+        "jc 87",
+        "halt",
+
+        "@skipto 46",
+        "load [300]",
+        "cmp 1",
+        "jnc 50",
+        "add 5",
+        "sub 1",
+        "store [300]",
+        "load [301]",
+        "cmp 5",
+        "jnc 56",
+        "sub 5",
+        "add 1",
+        "store [301]",
+        "inc [303]",
+        "jmp 0",
+
+        "@skipto 62",
+        "load [300]",
+        "cmp 5",
+        "jnc 66",
+        "sub 5",
+        "add 1",
+        "store [300]",
+        "jc 52",
+
+        "@skipto 71",
+        "load [300]",
+        "cmp 5",
+        "jnc 75",
+        "sub 5",
+        "add 1",
+        "store [300]",
+        "load [301]",
+        "cmp 1",
+        "jnc 81",
+        "add 5",
+        "sub 1",
+        "store [301]",
+        "inc [303]",
+        "jmp 0",
+
+        "@skipto 87",
+        "load [300]",
+        "cmp 1",
+        "jnc 91",
+        "add 5",
+        "sub 1",
+        "store [300]",
+        "jc 77",
+      ]),
+    );
+
+    data(sim.memory, ["@skipto 300", 1, 5, 0, 305, "@skipto 305", 1, 0]);
+
+    sim.run();
+
+    checkMemory(sim.memory, ["@skipto 300", 5, 1, 2, 306, "@skipto 305", 1, 0]);
+
+    expect(sim.halted).toBe(true);
+    expect(sim.cf).toBe(true);
+    expect(sim.pc).toBe(27);
+    expect(sim.acc).toBe(2);
+    expect(sim.mar).toBe(26);
+    expect(sim.mbr).toBe(3);
+  });
 });
