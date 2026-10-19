@@ -73,6 +73,32 @@ describe("simulator", () => {
     console.log(`speed test: ${outerCount * innerCount} loops took ${total.toFixed(3)} ms`);
     expect(total).toBeLessThan(100);
   });
+
+  it("sets OF=1 and ACC=0 on division by zero", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv 0\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = 1738;
+
+    sim.run();
+
+    expect(sim.halted).toBe(true);
+    expect(sim.acc).toBe(0);
+    expect(sim.of).toBe(true);
+  });
+
+  it("sets OF=1 and NF=1 on overflowing multiply", () => {
+    const sim = new Simulator();
+    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul [1025]\nhalt", BUILTIN_OPCODES));
+    sim.memory[1024] = 1738;
+    sim.memory[1025] = 7183015;
+
+    sim.run();
+
+    expect(sim.halted).toBe(true);
+    expect(sim.acc).toBe(-400821818);
+    expect(sim.of).toBe(true);
+    expect(sim.sf).toBe(true);
+  });
 });
 
 type DataChunk = number | [value: number, count: number] | string;

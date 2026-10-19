@@ -3,6 +3,9 @@ import type { Simulator } from "./simulator";
 
 export type UOps = Record<string, (st: Simulator) => void>;
 
+const I32_MAX = 2147483647;
+const I32_MIN = -2147483648;
+
 export const UOPS = {
   accToMbr(st) {
     st.mbr = st.acc;
@@ -77,9 +80,11 @@ export const UOPS = {
   },
 
   mSub(st) {
+    st.of = st.acc - st.mbr < I32_MIN;
     st.acc = (st.acc - st.mbr) >>> 0;
   },
   mAdd(st) {
+    st.of = st.acc + st.mbr > I32_MAX;
     st.acc = (st.acc + st.mbr) >>> 0;
   },
   mMul(st) {
@@ -87,7 +92,9 @@ export const UOPS = {
   },
   mDiv(st) {
     if (st.mbr === 0) {
-      throw new Error("Division by zero");
+      st.acc = 0;
+      st.of = true;
+      return;
     }
     st.acc = Math.floor(st.acc / st.mbr) >>> 0;
   },
@@ -141,16 +148,29 @@ export const UOPS = {
     st.acc = (st.acc << 1) >>> 0;
   },
   rshiftAcc(st) {
+    if ((st.acc & 1) == 1) {
+      st.of = true;
+    }
     st.acc = (st.acc >>> 1) >>> 0;
   },
   lshiftAccOf(st) {
-    const result = (st.acc << 1) >>> 0;
-    st.of = (st.acc & 0x80000000) !== (result & 0x80000000);
+    let result = (st.acc << 1) >>> 0;
+    if (st.of) {
+      result |= 1;
+    }
+    if (((st.acc >> 31) & 1) == 1) {
+      st.of = true;
+    }
     st.acc = result;
   },
   rshiftAccOf(st) {
-    const result = (st.acc >>> 1) >>> 0;
-    st.of = (st.acc & 0x80000000) !== (result & 0x80000000);
+    let result = (st.acc >> 1) >>> 0;
+    if (st.of) {
+      result |= 1 << 31;
+    }
+    if ((st.acc & 1) == 1) {
+      st.of = true;
+    }
     st.acc = result;
   },
 
@@ -159,6 +179,19 @@ export const UOPS = {
     st.zf = false;
     st.sf = false;
     st.of = false;
+  },
+
+  setCf(st) {
+    st.cf = true;
+  },
+  setZf(st) {
+    st.zf = true;
+  },
+  setSf(st) {
+    st.sf = true;
+  },
+  setOf(st) {
+    st.of = true;
   },
 
   nop(_st) {},
@@ -175,9 +208,9 @@ export const BRANCHY_UOPS: UOp[] = ["testAcc", "testNotAcc", "testCf", "testNotC
 
 // Maps ID to human readable name
 export const NAME_TO_UOP = {
-  irToMbr: "IR adr. => MBR",
+  irToMbr: "IR operand => MBR",
   mbrToIr: "MBR => IR",
-  mbrToMar: "MBR  => MAR",
+  mbrToMar: "MBR => MAR",
   marToMbr: "MAR => MBR",
   accToMbr: "ACC => MBR",
   mbrToAcc: "MBR => ACC",
@@ -211,4 +244,8 @@ export const NAME_TO_UOP = {
   clearSr: "CLEAR SR",
   incrementPc: "INCREMENT PC",
   decode: "DECODE",
+  setCf: "SET CF",
+  setZf: "SET ZF",
+  setSf: "SET SF",
+  setOf: "SET OF",
 } satisfies Record<UOp, string>;
