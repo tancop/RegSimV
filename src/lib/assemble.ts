@@ -15,7 +15,7 @@ export enum AssembleErrorType {
   UnsupportedAddressMode = "unsupported-address-mode",
   /** A bracketed operand is neither a label nor an integer. */
   MalformedOperand = "malformed-operand",
-  /** The operand is neither a label nor an integer in `0..16777215`. */
+  /** The operand is neither a label nor an integer in `-8388608..8388607`. */
   InvalidOperand = "invalid-operand",
 }
 
@@ -48,6 +48,12 @@ type ModeKey = (typeof MODE_KEYS)[keyof typeof MODE_KEYS];
 
 const ALL_MODE_KEYS: ModeKey[] = ["immediate", "direct", "indirect"];
 
+/** Inclusive bounds of a signed 24-bit operand. */
+const MIN_OPERAND = -0x800000;
+const MAX_OPERAND = 0x7fffff;
+/** Mask turning a signed 24-bit operand into its unsigned encoding. */
+const OPERAND_MASK = 0xffffff;
+
 function assertModeSupported(
   op: Operation,
   addressMode: AddressMode,
@@ -71,6 +77,8 @@ function assertModeSupported(
  * One instruction per line: `MNEMONIC [operand]`, `[x]` = direct,
  * `[mem x]` = indirect (whitespace inside brackets is flexible,
  * e.g. `[mem 302]`, `[mem302]`, `[ mem 302 ]`), bare number = immediate.
+ * Numeric operands are signed and must fit in 24 bits (`-8388608..8388607`);
+ * negative values are encoded as two's complement.
  * `#` starts a comment. Returns 32-bit words.
  * Throws {@link AssembleError} on invalid input; see {@link AssembleErrorType}.
  */
@@ -142,8 +150,8 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
 
       addressMode = AddressMode.Immediate;
 
-      const indirectMatch = operandRaw.match(/^\[\s*mem\s*([a-z0-9]+)\s*\]$/i);
-      const directMatch = operandRaw.match(/^\[\s*([a-z0-9]+)\s*\]$/);
+      const indirectMatch = operandRaw.match(/^\[\s*mem\s*(-?[a-z0-9]+)\s*\]$/i);
+      const directMatch = operandRaw.match(/^\[\s*(-?[a-z0-9]+)\s*\]$/);
 
       if (indirectMatch) {
         addressMode = AddressMode.Indirect;
@@ -169,14 +177,21 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
 
     if (text !== undefined) {
       const bracketed = addressMode !== AddressMode.Immediate;
-      const digits = /^\d+$/.test(text);
-      const parsed = digits ? Number(text) : Number.NaN;
+      const numeric = /^-?\d+$/.test(text);
+      const parsed = numeric ? Number(text) : Number.NaN;
 
       if (labels[text] !== undefined) {
         operand = labels[text];
-      } else if (digits && parsed <= 0xffffff) {
-        operand = parsed;
-      } else if (bracketed && !digits) {
+      } else if (numeric) {
+        if (parsed < MIN_OPERAND || parsed > MAX_OPERAND) {
+          throw new AssembleError(
+            AssembleErrorType.InvalidOperand,
+            i + 1,
+            `Line ${i + 1}: operand ${text} is out of range -8388608..8388607`,
+          );
+        }
+        operand = parsed & OPERAND_MASK;
+      } else if (bracketed) {
         throw new AssembleError(
           AssembleErrorType.MalformedOperand,
           i + 1,
@@ -186,7 +201,7 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
         throw new AssembleError(
           AssembleErrorType.InvalidOperand,
           i + 1,
-          `Line ${i + 1}: operand must be a label or an integer 0..16777215`,
+          `Line ${i + 1}: operand must be a label or an integer -8388608..8388607`,
         );
       }
     }

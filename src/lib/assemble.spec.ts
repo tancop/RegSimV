@@ -41,9 +41,10 @@ describe("assemble", () => {
     } satisfies Instruction);
   });
 
-  it("accepts the full 24-bit operand range", () => {
-    expect.assertions(2);
-    expect(assembleOne("add 16777215").operand).toBe(0xffffff);
+  it("accepts the full signed 24-bit operand range", () => {
+    expect.assertions(4);
+    expect(assembleOne("add 8388607").operand).toBe(0x7fffff);
+    expect(assembleOne("add -8388608").operand).toBe(0x800000);
   });
 
   it("encodes [x] as direct", () => {
@@ -157,14 +158,21 @@ describe("assemble", () => {
   });
 
   it("rejects non-integer operands", () => {
-    expect.assertions(2);
-    expect(assembleError("add -1").type).toBe(AssembleErrorType.InvalidOperand);
+    expect.assertions(1);
     expect(assembleError("add 1.5").type).toBe(AssembleErrorType.InvalidOperand);
   });
 
+  it("encodes negative integer operands as two's complement", () => {
+    expect.assertions(5);
+    expect(() => assemble("add -1", BUILTIN_OPCODES)).not.toThrow();
+    expect(assembleOne("add -1").operand).toBe(0xffffff);
+    expect(assembleOne("load [-1]").addressMode).toBe(AddressMode.Direct);
+  });
+
   it("rejects operands over 24 bits", () => {
-    expect.assertions(1);
-    expect(assembleError("add 16777216").type).toBe(AssembleErrorType.InvalidOperand);
+    expect.assertions(2);
+    expect(assembleError("add 8388608").type).toBe(AssembleErrorType.InvalidOperand);
+    expect(assembleError("add -8388609").type).toBe(AssembleErrorType.InvalidOperand);
   });
 
   it("reports the line number of the offending line", () => {

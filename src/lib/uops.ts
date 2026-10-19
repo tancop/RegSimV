@@ -3,8 +3,8 @@ import type { Simulator } from "./simulator";
 
 export type UOps = Record<string, (st: Simulator) => void>;
 
-const I32_MAX = 2147483647;
-const I32_MIN = -2147483648;
+export const I32_MAX = 2147483647;
+export const I32_MIN = -2147483648;
 
 export const UOPS = {
   accToMbr(st) {
@@ -30,11 +30,11 @@ export const UOPS = {
   },
   irToMbr(st) {
     const operand = st.decodedInstruction?.operand;
-    if (operand !== undefined) {
-      st.mbr = operand;
-    } else {
+    if (operand === undefined) {
       throw new Error("No decoded instruction to get operand from");
     }
+    // The operand field is a signed 24-bit value; sign-extend it to 32 bits.
+    st.mbr = ((operand << 8) >> 8) >>> 0;
   },
   marToMbr(st) {
     st.mbr = st.mar;
@@ -80,23 +80,42 @@ export const UOPS = {
   },
 
   mSub(st) {
-    st.of = st.acc - st.mbr < I32_MIN;
-    st.acc = (st.acc - st.mbr) >>> 0;
+    const a = st.acc | 0;
+    const b = st.mbr | 0;
+    const result = (a - b) | 0;
+    st.of = result !== a - b;
+    st.sf = result < 0;
+    st.acc = result;
   },
   mAdd(st) {
-    st.of = st.acc + st.mbr > I32_MAX;
-    st.acc = (st.acc + st.mbr) >>> 0;
+    const a = st.acc | 0;
+    const b = st.mbr | 0;
+    const result = (a + b) | 0;
+    st.of = result !== a + b;
+    st.sf = result < 0;
+    st.acc = result;
   },
   mMul(st) {
-    st.acc = (st.acc * st.mbr) >>> 0;
+    const a = st.acc | 0;
+    const b = st.mbr | 0;
+    const result = Math.imul(a, b);
+    st.of = result !== a * b;
+    st.sf = result < 0;
+    st.acc = result;
   },
   mDiv(st) {
-    if (st.mbr === 0) {
+    const divisor = st.mbr | 0;
+    if (divisor === 0) {
       st.acc = 0;
       st.of = true;
       return;
     }
-    st.acc = Math.floor(st.acc / st.mbr) >>> 0;
+    const dividend = st.acc | 0;
+    const overflows = dividend === I32_MIN && divisor === -1;
+    const result = overflows ? I32_MIN : (dividend / divisor) | 0;
+    st.of = overflows;
+    st.sf = result < 0;
+    st.acc = result;
   },
 
   notAcc(st) {
