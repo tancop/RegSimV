@@ -1,63 +1,111 @@
 <script lang="ts">
-  import { assemble } from "#lib/assemble";
+  import { assemble, AssembleError } from "#lib/assemble";
   import { BUILTIN_OPCODES } from "#lib/opcodes.ts";
   import { Simulator } from "#lib/simulator";
 
   const DEMO = `# Demo: 5 + 7 stored at 1024\nLOAD [1024]\nADD 5\nADD 7\nSTORE [1024]\nHALT`;
 
+  let running = $state(false);
   let sim = $state(new Simulator());
   let source = $state(DEMO);
-  let error = $state("");
+  let runtimeError = $state("");
   let data = $state("");
   let tick = $state(0);
+
+  let [program, assembleError] = $derived.by(() => {
+    try {
+      return [assemble(source, BUILTIN_OPCODES), undefined];
+    } catch (e) {
+      return [undefined, (e as AssembleError).message];
+    }
+  });
 
   function refresh() {
     tick++;
   }
 
   function load() {
-    error = "";
-    try {
-      const program = assemble(source, BUILTIN_OPCODES);
-      sim.reset();
-      sim.loadProgram(BUILTIN_OPCODES, program);
-      for (const line of data.split("\n")) {
-        const [addressStr, valueStr] = line.split(" ");
-        if (addressStr && valueStr) {
-          const address = parseInt(addressStr.trim(), 10);
-          const value = parseInt(valueStr.trim(), 10);
-          sim.memory[address] = value;
-        }
+    if (!program) return;
+    sim.reset();
+    sim.loadProgram(BUILTIN_OPCODES, program);
+    for (const line of data.split("\n")) {
+      const [addressStr, valueStr] = line.split(" ");
+      if (addressStr && valueStr) {
+        const address = parseInt(addressStr.trim(), 10);
+        const value = parseInt(valueStr.trim(), 10);
+        sim.memory[address] = value;
       }
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
     }
-    refresh();
   }
 
   function step() {
-    error = "";
+    if (!program) return;
+    runtimeError = "";
+
+    if (!running) {
+      try {
+        load();
+        running = true;
+      } catch (e) {
+        runtimeError = e instanceof Error ? e.message : String(e);
+        return;
+      }
+    }
+
     try {
       sim.step();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      runtimeError = e instanceof Error ? e.message : String(e);
     }
+  }
+
+  function uStep() {
+    if (!program) return;
+    runtimeError = "";
+
+    if (!running) {
+      try {
+        load();
+        running = true;
+      } catch (e) {
+        runtimeError = e instanceof Error ? e.message : String(e);
+        return;
+      }
+    }
+
+    try {
+      sim.uStep();
+    } catch (e) {
+      runtimeError = e instanceof Error ? e.message : String(e);
+    }
+
     refresh();
   }
 
   function run() {
-    error = "";
+    if (!program) return;
+    runtimeError = "";
+
+    try {
+      load();
+      running = true;
+    } catch (e) {
+      runtimeError = e instanceof Error ? e.message : String(e);
+      return;
+    }
+
     try {
       sim.run();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      runtimeError = e instanceof Error ? e.message : String(e);
     }
     refresh();
   }
 
   function reset() {
-    error = "";
+    runtimeError = "";
     sim.reset();
+    running = false;
     refresh();
   }
 </script>
@@ -78,16 +126,18 @@
   </div>
 
   <div class="flex flex-wrap gap-2">
-    <button class="rounded bg-blue-600 px-3 py-1 text-white" onclick={load}
-      >Assemble &amp; Load</button
-    >
     <button class="rounded border px-3 py-1" onclick={step}>Step</button>
+    <button class="rounded border px-3 py-1" onclick={uStep}>Step Micro</button>
     <button class="rounded border px-3 py-1" onclick={run}>Run</button>
     <button class="rounded border px-3 py-1" onclick={reset}>Reset</button>
   </div>
 
-  {#if error}
-    <p class="rounded border border-red-400 p-2 text-sm text-red-600">{error}</p>
+  {#if assembleError}
+    <p class="rounded border border-red-400 p-2 text-sm text-red-600">{assembleError}</p>
+  {/if}
+
+  {#if runtimeError}
+    <p class="rounded border border-red-400 p-2 text-sm text-red-600">{runtimeError}</p>
   {/if}
 
   {#key tick}
