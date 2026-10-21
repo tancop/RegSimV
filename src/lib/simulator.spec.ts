@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { assemble } from "./assemble";
 import { Simulator } from "./simulator";
-import { BUILTIN_OPCODES, type Operation } from "./opcodes";
+import { BUILTIN_OPCODES, createOpcodeTable, type OpcodeTable } from "./opcodes";
 import { I32_MIN } from "./uops";
+
+const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
 describe("simulator", () => {
   it("runs ADD immediate then HALT", () => {
     expect.assertions(2);
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("ADD 5\nHALT", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("ADD 5\nHALT", OPCODES));
     const steps = sim.run();
     expect(sim.acc).toBe(5);
     expect(steps).toBe(2);
@@ -17,15 +19,15 @@ describe("simulator", () => {
   it("rejects out-of-range memory access", () => {
     expect.assertions(1);
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("LOAD [5000]", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("LOAD [5000]", OPCODES));
     expect(() => sim.step()).toThrow(RangeError);
   });
 
   it("runs loop with INC and CMP", () => {
     const sim = new Simulator();
     sim.loadProgram(
-      BUILTIN_OPCODES,
-      assemble("load [1024]\ncmp 5\njc 5\ninc [1024]\njmp 0\nhalt", BUILTIN_OPCODES),
+      OPCODES,
+      assemble("load [1024]\ncmp 5\njc 5\ninc [1024]\njmp 0\nhalt", OPCODES),
     );
     sim.run();
     expect(sim.halted).toBe(true);
@@ -39,7 +41,7 @@ describe("simulator", () => {
 
     const sim = new Simulator();
     sim.loadProgram(
-      BUILTIN_OPCODES,
+      OPCODES,
       program([
         "outer: load [1026]",
         `cmp ${outerCount}`,
@@ -77,7 +79,7 @@ describe("simulator", () => {
 
   it("divides two positive numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv 43\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\ndiv 43\nhalt", OPCODES));
     sim.memory[1024] = 4085;
 
     sim.run();
@@ -88,7 +90,7 @@ describe("simulator", () => {
 
   it("uses floor division", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv 63\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\ndiv 63\nhalt", OPCODES));
     sim.memory[1024] = 1738;
 
     sim.run();
@@ -99,7 +101,7 @@ describe("simulator", () => {
 
   it("divides by a negative number", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv -63\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\ndiv -63\nhalt", OPCODES));
     sim.memory[1024] = 1738;
 
     sim.run();
@@ -110,7 +112,7 @@ describe("simulator", () => {
 
   it("divides two large negative numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv -808\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\ndiv -808\nhalt", OPCODES));
     sim.memory[1024] = -7355608;
 
     sim.run();
@@ -121,7 +123,7 @@ describe("simulator", () => {
 
   it("sets OF=1 and ACC=0 on division by zero", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv 0\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\ndiv 0\nhalt", OPCODES));
     sim.memory[1024] = 1738;
 
     sim.run();
@@ -132,7 +134,7 @@ describe("simulator", () => {
 
   it("sets OF=1 and leaves ACC unchanged on overflowing division", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\ndiv -1\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\ndiv -1\nhalt", OPCODES));
     sim.memory[1024] = I32_MIN;
 
     sim.run();
@@ -143,7 +145,7 @@ describe("simulator", () => {
 
   it("multiplies two positive numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul 831\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\nmul 831\nhalt", OPCODES));
     sim.memory[1024] = 821;
 
     sim.run();
@@ -154,7 +156,7 @@ describe("simulator", () => {
 
   it("multiplies with a negative number", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul -831\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\nmul -831\nhalt", OPCODES));
     sim.memory[1024] = 821;
 
     sim.run();
@@ -165,7 +167,7 @@ describe("simulator", () => {
 
   it("multiplies two negative numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul -831\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\nmul -831\nhalt", OPCODES));
     sim.memory[1024] = -821;
 
     sim.run();
@@ -176,7 +178,7 @@ describe("simulator", () => {
 
   it("sets OF=1 and NF=1 on overflowing multiply", () => {
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("load [1024]\nmul [1025]\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("load [1024]\nmul [1025]\nhalt", OPCODES));
     sim.memory[1024] = 1738;
     sim.memory[1025] = 7183015;
 
@@ -240,7 +242,7 @@ function checkMemory(memory: Uint32Array, chunks: DataChunk[]): void {
   }
 }
 
-function program(lines: string[], opcodes: Record<string, Operation> = BUILTIN_OPCODES): number[] {
+function program(lines: string[], opcodes: OpcodeTable = OPCODES): number[] {
   const expanded: string[] = [];
   for (const line of lines) {
     const trimmed = line.trim();
@@ -265,7 +267,7 @@ describe("simulator golden tests", () => {
     const sim = new Simulator();
     sim.dataMemoryStart = 300;
     sim.loadProgram(
-      BUILTIN_OPCODES,
+      OPCODES,
       program([
         "LOAD [mem 302]",
         "CMP 1",
@@ -334,7 +336,7 @@ describe("simulator golden tests", () => {
   it("runs zadanie4_53.regs", () => {
     const sim = new Simulator();
     sim.loadProgram(
-      BUILTIN_OPCODES,
+      OPCODES,
       program([
         "JMP 31",
         "LOAD [mem 425]",
@@ -454,12 +456,15 @@ describe("simulator golden tests", () => {
   });
 
   it("runs zadanie4_m.regs with custom instruction", () => {
-    const opcodes: Record<string, Operation> = {
+    const opcodes = createOpcodeTable([
       ...BUILTIN_OPCODES,
-      SET: {
-        immediate: ["irToMbr", "mbrToAcc"],
+      {
+        name: "SET",
+        uops: {
+          immediate: ["irToMbr", "mbrToAcc"],
+        },
       },
-    };
+    ]);
 
     const sim = new Simulator();
     sim.dataMemoryStart = 300;
@@ -553,7 +558,7 @@ describe("simulator golden tests", () => {
     const sim = new Simulator();
     sim.dataMemoryStart = 300;
     sim.loadProgram(
-      BUILTIN_OPCODES,
+      OPCODES,
       program([
         "load [300]",
         "cmp 5",

@@ -1,6 +1,6 @@
 import { type Instruction } from "./encoding";
 import { compile, compileVariant, type CompiledOperation } from "./jit";
-import type { Operation } from "./opcodes";
+import type { OpcodeTable } from "./opcodes";
 import { UOPS, type UOp } from "./uops";
 
 export const MEMORY_SIZE = 2048;
@@ -53,7 +53,7 @@ export class Simulator {
     this.memory.fill(0);
   }
 
-  loadProgram(opcodes: Record<string, Operation>, program: ArrayLike<number>, start = 0): void {
+  loadProgram(opcodes: OpcodeTable, program: ArrayLike<number>, start = 0): void {
     if (start < 0 || start + program.length > MEMORY_SIZE) {
       throw new RangeError("Program does not fit in memory");
     }
@@ -63,9 +63,7 @@ export class Simulator {
     this.pc = start;
     this.halted = false;
 
-    for (const op of Object.values(opcodes)) {
-      this.compiledOps.push(compile(op));
-    }
+    this.compiledOps = compile(opcodes.uops);
   }
 
   checkAddress(addr: number): void {

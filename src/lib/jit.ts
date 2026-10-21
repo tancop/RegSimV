@@ -26,7 +26,7 @@ export function compileVariant(
   return new Function("st", "ops", fnText) as (st: Simulator) => IterableIterator<number>;
 }
 
-export function compile(op: Operation): CompiledOperation {
+function compileOperation(op: Operation): CompiledOperation {
   const result: CompiledOperation = {};
 
   if (op.immediate) result.immediate = compileVariant(op.immediate);
@@ -35,4 +35,9 @@ export function compile(op: Operation): CompiledOperation {
   result.isZeroArgument = op.isZeroArgument;
 
   return result;
+}
+
+/** Compiles uops indexed by opcode number into a fresh array with the same order. */
+export function compile(uops: Operation[]): CompiledOperation[] {
+  return uops.map(compileOperation);
 }

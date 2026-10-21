@@ -1,5 +1,5 @@
 import { AddressMode, encodeInstruction } from "./encoding";
-import { opcodeNumber, type Operation } from "./opcodes";
+import type { OpcodeTable, Operation } from "./opcodes";
 
 /** Machine-readable classification of an assembly failure. */
 export enum AssembleErrorType {
@@ -82,7 +82,7 @@ function assertModeSupported(
  * `#` starts a comment. Returns 32-bit words.
  * Throws {@link AssembleError} on invalid input; see {@link AssembleErrorType}.
  */
-export function assemble(source: string, opcodes: Record<string, Operation>): number[] {
+export function assemble(source: string, opcodes: OpcodeTable): number[] {
   const program: number[] = [];
   const lines = source.split("\n");
   const labels: Record<string, number> = {};
@@ -124,13 +124,14 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
     const operandRaw = firstSpace === -1 ? undefined : line.slice(firstSpace).trim() || undefined;
 
     const mnemonic = mnemonicRaw.toUpperCase();
-    const op = opcodes[mnemonic];
+    const opcode = opcodes.nameToIndex[mnemonic];
+    const op = opcode === undefined ? undefined : opcodes.uops[opcode];
 
     if (op === undefined) {
       throw new AssembleError(
         AssembleErrorType.UnknownMnemonic,
         i + 1,
-        `Line ${i + 1}: unknown mnemonic "${mnemonicRaw}" (supported: ${Object.keys(opcodes).join(", ")})`,
+        `Line ${i + 1}: unknown mnemonic "${mnemonicRaw}" (supported: ${opcodes.indexToName.join(", ")})`,
       );
     }
 
@@ -207,9 +208,7 @@ export function assemble(source: string, opcodes: Record<string, Operation>): nu
       }
     }
 
-    program.push(
-      encodeInstruction({ opcode: opcodeNumber(mnemonic, opcodes), operand, addressMode }),
-    );
+    program.push(encodeInstruction({ opcode, operand, addressMode }));
   }
   return program;
 }

@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { assemble, AssembleError, AssembleErrorType } from "./assemble";
 import { AddressMode, decodeInstruction, type Instruction } from "./encoding";
-import { BUILTIN_OPCODES } from "./opcodes";
+import { BUILTIN_OPCODES, createOpcodeTable } from "./opcodes";
 import { Simulator } from "./simulator";
+
+const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
 /** Assembles a single instruction and decodes it back. */
 function assembleOne(source: string): Instruction {
-  const words = assemble(source, BUILTIN_OPCODES);
+  const words = assemble(source, OPCODES);
   expect(words).toHaveLength(1);
   return decodeInstruction(words[0]);
 }
@@ -14,7 +16,7 @@ function assembleOne(source: string): Instruction {
 /** Assembles source and returns the thrown AssembleError (fails the test otherwise). */
 function assembleError(source: string): AssembleError {
   try {
-    assemble(source, BUILTIN_OPCODES);
+    assemble(source, OPCODES);
   } catch (error) {
     if (error instanceof AssembleError) return error;
     throw error; // unexpected error type
@@ -121,7 +123,7 @@ describe("assemble", () => {
 
   it("assembles a multi-line program and skips blank lines", () => {
     expect.assertions(1);
-    expect(assemble("\nadd 5\n\n   \nhalt\n", BUILTIN_OPCODES).map(decodeInstruction)).toEqual([
+    expect(assemble("\nadd 5\n\n   \nhalt\n", OPCODES).map(decodeInstruction)).toEqual([
       { opcode: 0, operand: 5, addressMode: AddressMode.Immediate },
       { opcode: 3, operand: 0, addressMode: AddressMode.Immediate },
     ] satisfies Instruction[]);
@@ -130,9 +132,7 @@ describe("assemble", () => {
   it("strips full-line and trailing comments", () => {
     expect.assertions(1);
     expect(
-      assemble("# a comment\nadd 5 # trailing comment\nhalt", BUILTIN_OPCODES).map(
-        decodeInstruction,
-      ),
+      assemble("# a comment\nadd 5 # trailing comment\nhalt", OPCODES).map(decodeInstruction),
     ).toEqual([
       { opcode: 0, operand: 5, addressMode: AddressMode.Immediate },
       { opcode: 3, operand: 0, addressMode: AddressMode.Immediate },
@@ -164,7 +164,7 @@ describe("assemble", () => {
 
   it("encodes negative integer operands as two's complement", () => {
     expect.assertions(5);
-    expect(() => assemble("add -1", BUILTIN_OPCODES)).not.toThrow();
+    expect(() => assemble("add -1", OPCODES)).not.toThrow();
     expect(assembleOne("add -1").operand).toBe(0xffffff);
     expect(assembleOne("load [-1]").addressMode).toBe(AddressMode.Direct);
   });
@@ -201,7 +201,7 @@ describe("assemble", () => {
   it("loadProgram stores ACC through the pointer given by [mem x]", () => {
     expect.assertions(3);
     const sim = new Simulator();
-    sim.loadProgram(BUILTIN_OPCODES, assemble("add 7\nstore [mem 1025]\nhalt", BUILTIN_OPCODES));
+    sim.loadProgram(OPCODES, assemble("add 7\nstore [mem 1025]\nhalt", OPCODES));
     sim.memory[1025] = 1026; // pointer cell: mem[1025] holds the target address
 
     sim.run();
@@ -217,7 +217,7 @@ describe("assemble", () => {
   });
 
   it("accepts label including number", () => {
-    expect(() => assemble("agent47: nop", BUILTIN_OPCODES)).not.toThrow();
+    expect(() => assemble("agent47: nop", OPCODES)).not.toThrow();
   });
 
   it("rejects double label", () => {
@@ -229,10 +229,10 @@ describe("assemble", () => {
     const sim = new Simulator();
 
     sim.loadProgram(
-      BUILTIN_OPCODES,
+      OPCODES,
       assemble(
         "start: load [1024]\ncmp 5\njc end\ninc [1024]\ninc [1025]\njmp start\nend: halt",
-        BUILTIN_OPCODES,
+        OPCODES,
       ),
     );
 

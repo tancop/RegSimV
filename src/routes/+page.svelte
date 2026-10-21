@@ -1,7 +1,9 @@
 <script lang="ts">
   import { assemble, AssembleError } from "#lib/assemble";
-  import { BUILTIN_OPCODES } from "#lib/opcodes.ts";
+  import { BUILTIN_OPCODES, createOpcodeTable } from "#lib/opcodes.ts";
   import { Simulator } from "#lib/simulator";
+
+  const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
   const DEMO = `# Demo: 5 + 7 stored at 1024\nLOAD [1024]\nADD 5\nADD 7\nSTORE [1024]\nHALT`;
 
@@ -14,7 +16,7 @@
 
   let [program, assembleError] = $derived.by(() => {
     try {
-      return [assemble(source, BUILTIN_OPCODES), undefined];
+      return [assemble(source, OPCODES), undefined];
     } catch (e) {
       return [undefined, (e as AssembleError).message];
     }
@@ -27,7 +29,7 @@
   function load() {
     if (!program) return;
     sim.reset();
-    sim.loadProgram(BUILTIN_OPCODES, program);
+    sim.loadProgram(OPCODES, program);
     for (const line of data.split("\n")) {
       const [addressStr, valueStr] = line.split(" ");
       if (addressStr && valueStr) {
