@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_OPCODES, createOpcodeTable, type OpcodeDefinition } from "./opcodes";
 
-describe("createOpcodeTable", () => {
+describe("opcode table", () => {
   it("assigns opcode numbers in definition order", () => {
     expect.assertions(5);
     const table = createOpcodeTable(BUILTIN_OPCODES);
