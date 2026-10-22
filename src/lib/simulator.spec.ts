@@ -74,7 +74,7 @@ describe("simulator", () => {
     const nsPerInstruction = (time * 1e6) / steps;
 
     console.log(
-      `speed test: ${steps} instructions in ${time.toFixed(3)} ms (${nsPerInstruction.toFixed(0)} ns/instruction)`,
+      `speed test: ${steps} instructions, ${sim.uopsExecuted} uOps in ${time.toFixed(3)} ms (${nsPerInstruction.toFixed(0)} ns/instruction)`,
     );
 
     expect(time).toBeLessThan(PERF_BUDGET_MS);

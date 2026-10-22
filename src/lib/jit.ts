@@ -22,7 +22,7 @@ export function compileVariant(
       fnText += `yield ops.${op}(st);`;
     }
   }
-  fnText += "})()";
+  fnText += `st.uopsExecuted+=${source.length};})()`;
   return new Function("st", "ops", fnText) as (st: Simulator) => IterableIterator<number>;
 }
 

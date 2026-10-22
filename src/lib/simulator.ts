@@ -34,6 +34,9 @@ export class Simulator {
   compiledOps: CompiledOperation[] = [];
   currentOp?: IterableIterator<number>;
 
+  // Statistics
+  uopsExecuted = 0;
+
   decodeSequence: (st: Simulator, ops: typeof UOPS) => IterableIterator<number> =
     compileVariant(DECODE_SEQUENCE);
 
@@ -51,6 +54,7 @@ export class Simulator {
     this.skipNext = false;
     this.decodedInstruction = undefined;
     this.memory.fill(0);
+    this.uopsExecuted = 0;
   }
 
   loadProgram(opcodes: OpcodeTable, program: ArrayLike<number>, start = 0): void {
