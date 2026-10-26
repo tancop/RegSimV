@@ -673,4 +673,289 @@ describe("simulator golden tests", () => {
     expect(sim.mar).toBe(26);
     expect(sim.mbr).toBe(3);
   });
+
+  it("runs zadanie4_k with multiple custom instructions", () => {
+    const opcodes = createOpcodeTable([
+      ...BUILTIN_OPCODES,
+      {
+        name: "INCR",
+        uops: {
+          direct: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "incrementAcc",
+            "incrementAcc",
+            "accToMbr",
+            "writeMem",
+          ],
+        },
+      },
+      {
+        name: "PENS",
+        uops: {
+          indirect: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "incrementAcc",
+            "writeMem",
+          ],
+        },
+      },
+      {
+        name: "RER",
+        uops: {
+          indirect: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "incrementAcc",
+            "writeMem",
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToMar",
+            "mbrToAcc",
+          ],
+        },
+      },
+      {
+        name: "PAGI",
+        uops: {
+          direct: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "rshiftAccOf",
+            "rshiftAccOf",
+            "accToMbr",
+            "writeMem",
+          ],
+        },
+      },
+      {
+        name: "SET",
+        uops: {
+          direct: ["irToMbr", "mbrToMar", "readMem", "clearSr", "srToAcc", "accToMbr", "writeMem"],
+        },
+      },
+      {
+        name: "PIES",
+        uops: {
+          direct: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "incrementAcc",
+            "clearSr",
+            "srToAcc",
+            "rshiftAcc",
+            "rshiftAcc",
+            "rshiftAcc",
+          ],
+        },
+      },
+      {
+        name: "KKS",
+        uops: {
+          direct: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "lshiftAcc",
+            "lshiftAcc",
+            "lshiftAcc",
+            "lshiftAcc",
+            "lshiftAcc",
+            "lshiftAcc",
+            "lshiftAcc",
+            "writeMem",
+          ],
+        },
+      },
+      {
+        name: "INCJM",
+        uops: {
+          direct: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "incrementAcc",
+            "irToMbr",
+            "mbrToMar",
+            "accToMbr",
+            "writeMem",
+            "clearSr",
+            "srToAcc",
+            "setSf",
+            "setOf",
+            "setCf",
+            "srToAcc",
+            "lshiftAcc",
+            "accToMbr",
+            "mbrToPc",
+          ],
+        },
+      },
+      {
+        name: "DECJM",
+        uops: {
+          direct: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "decrementAcc",
+            "irToMbr",
+            "mbrToMar",
+            "accToMbr",
+            "writeMem",
+            "clearSr",
+            "srToAcc",
+            "setCf",
+            "setOf",
+            "setSf",
+            "srToAcc",
+            "lshiftAcc",
+            "accToMbr",
+            "mbrToPc",
+          ],
+        },
+      },
+      {
+        name: "JMPST",
+        uops: {
+          direct: [
+            "irToMbr",
+            "mbrToMar",
+            "readMem",
+            "mbrToAcc",
+            "incrementAcc",
+            "irToMbr",
+            "mbrToMar",
+            "accToMbr",
+            "writeMem",
+            "clearSr",
+            "srToAcc",
+            "accToMbr",
+            "mbrToPc",
+          ],
+        },
+      },
+    ]);
+
+    const sim = new Simulator();
+    sim.dataMemoryStart = 300;
+    sim.loadProgram(
+      opcodes,
+      program(
+        [
+          "LOAD [mem 303]",
+          "CMP 11",
+          "JC 16",
+          "CMP 12",
+          "JC 19",
+          "CMP 15",
+          "JC 32",
+          "CMP 21",
+          "JC 22",
+          "CMP 22",
+          "JC 25",
+          "CMP 25",
+          "JC 34",
+          "JZ 58",
+          "JMP 28",
+          "",
+          "DECJM [300]",
+          "",
+          "",
+          "INCJM [300]",
+          "",
+          "",
+          "DECJM [301]",
+          "",
+          "",
+          "INCJM [301]",
+          "",
+          "",
+          "JMPST [303]",
+          "",
+          "",
+          "",
+          "INC [302]",
+          "JMP 40",
+          "INCR [302]",
+          "JMP 40",
+          "",
+          "SET [302]",
+          "JMP 28",
+          "",
+          "LOAD [301]",
+          "CMP [300]",
+          "JC 45",
+          "JMP 37",
+          "",
+          "LOAD [mem 400]",
+          "JZ 58",
+          "CMP [301]",
+          "JC 52",
+          "INC [400]",
+          "JMP 45",
+          "",
+          "SET [400]",
+          "ADD 401",
+          "STORE [400]",
+          "JMP 37",
+          "",
+          "",
+          "HALT",
+        ],
+        opcodes,
+      ),
+    );
+
+    data(sim.memory, [
+      "@skipto 300",
+      3,
+      3,
+      0,
+      305,
+      "@skipto 305",
+      [11, 2],
+      22,
+      25,
+      15,
+      12,
+      22,
+      15,
+      0,
+      "@skipto 400",
+      401,
+      2,
+      4,
+      0,
+    ]);
+
+    sim.run();
+
+    checkMemory(sim.memory, ["@skipto 300", 2, 5, 0, 313, "@skipto 400", 401, 2, 4, 0]);
+
+    expect(sim.halted).toBe(true);
+    expect(sim.pc).toBe(59);
+    expect(sim.acc).toBe(0);
+    expect(sim.mar).toBe(58);
+    expect(sim.mbr).toBe(3);
+  });
 });
