@@ -164,10 +164,13 @@ export const UOPS = {
   },
 
   lshiftAcc(st) {
+    if ((st.acc & (1 << 31)) != 0) {
+      st.of = true;
+    }
     st.acc = (st.acc << 1) >>> 0;
   },
   rshiftAcc(st) {
-    if ((st.acc & 1) == 1) {
+    if ((st.acc & 1) != 0) {
       st.of = true;
     }
     st.acc = (st.acc >>> 1) >>> 0;
@@ -211,6 +214,10 @@ export const UOPS = {
   },
   setOf(st) {
     st.of = true;
+  },
+
+  srToAcc(st) {
+    st.acc = (+st.cf << 3) | (+st.of << 2) | (+st.sf << 1) | +st.zf;
   },
 
   nop(_st) {},
