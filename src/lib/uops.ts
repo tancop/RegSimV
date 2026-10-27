@@ -164,15 +164,11 @@ export const UOPS = {
   },
 
   lshiftAcc(st) {
-    if ((st.acc & (1 << 31)) != 0) {
-      st.of = true;
-    }
+    st.of = (st.acc & (1 << 31)) != 0;
     st.acc = (st.acc << 1) >>> 0;
   },
   rshiftAcc(st) {
-    if ((st.acc & 1) != 0) {
-      st.of = true;
-    }
+    st.of = (st.acc & 1) != 0;
     st.acc = (st.acc >>> 1) >>> 0;
   },
   lshiftAccOf(st) {
@@ -180,9 +176,7 @@ export const UOPS = {
     if (st.of) {
       result |= 1;
     }
-    if (((st.acc >> 31) & 1) == 1) {
-      st.of = true;
-    }
+    st.of = ((st.acc >> 31) & 1) == 1;
     st.acc = result;
   },
   rshiftAccOf(st) {
@@ -190,9 +184,7 @@ export const UOPS = {
     if (st.of) {
       result |= 1 << 31;
     }
-    if ((st.acc & 1) == 1) {
-      st.of = true;
-    }
+    st.of = (st.acc & 1) == 1;
     st.acc = result;
   },
 
@@ -274,4 +266,5 @@ export const NAME_TO_UOP = {
   setZf: "SET ZF",
   setSf: "SET SF",
   setOf: "SET OF",
+  srToAcc: "SR => ACC",
 } satisfies Record<UOp, string>;

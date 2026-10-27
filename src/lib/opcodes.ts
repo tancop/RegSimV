@@ -216,12 +216,14 @@ export const BUILTIN_OPCODES: OpcodeDefinition[] = [
     name: "SHL",
     uops: {
       immediate: ["lshiftAcc"],
+      isZeroArgument: true,
     },
   },
   {
     name: "SHR",
     uops: {
       immediate: ["rshiftAcc"],
+      isZeroArgument: true,
     },
   },
   {
@@ -244,15 +246,17 @@ export const BUILTIN_OPCODES: OpcodeDefinition[] = [
     },
   },
   {
-    name: "SLO",
+    name: "ROL",
     uops: {
       immediate: ["lshiftAccOf"],
+      isZeroArgument: true,
     },
   },
   {
-    name: "SRO",
+    name: "ROR",
     uops: {
       immediate: ["rshiftAccOf"],
+      isZeroArgument: true,
     },
   },
   {
