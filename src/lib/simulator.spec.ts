@@ -191,6 +191,102 @@ describe("simulator", () => {
     expect(sim.of).toBe(true);
     expect(sim.sf).toBe(true);
   });
+
+  // Shift and rotate
+
+  it("shifts left normal positive number", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nshl\nhalt", OPCODES));
+    sim.memory[1024] = 21;
+
+    sim.run();
+
+    expect(sim.acc).toBe(42);
+    expect(sim.of).toBe(false);
+  });
+
+  it("shifts left and sets OF when MSB is 1", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nshl\nhalt", OPCODES));
+
+    sim.memory[1024] = -2147483648;
+
+    sim.run();
+
+    expect(sim.acc).toBe(0);
+    expect(sim.of).toBe(true);
+  });
+
+  it("shifts right normal positive number", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nshr\nhalt", OPCODES));
+    sim.memory[1024] = 42;
+
+    sim.run();
+
+    expect(sim.acc).toBe(21);
+    expect(sim.of).toBe(false);
+  });
+
+  it("shifts right and sets OF when LSB is 1", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nshr\nhalt", OPCODES));
+    sim.memory[1024] = 1;
+
+    sim.run();
+
+    expect(sim.acc).toBe(0);
+    expect(sim.of).toBe(true);
+  });
+
+  it("rotates left through OF without existing OF", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nrol\nhalt", OPCODES));
+    sim.memory[1024] = -2147483648;
+    sim.of = false;
+
+    sim.run();
+
+    expect(sim.acc).toBe(0);
+    expect(sim.of).toBe(true);
+  });
+
+  it("rotates left through OF with existing OF", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nrol\nhalt", OPCODES));
+    sim.memory[1024] = 0;
+
+    sim.of = true;
+
+    sim.run();
+
+    expect(sim.acc).toBe(1);
+    expect(sim.of).toBe(false);
+  });
+
+  it("rotates right through OF without existing OF", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nror\nhalt", OPCODES));
+    sim.memory[1024] = 1;
+    sim.of = false;
+
+    sim.run();
+
+    expect(sim.acc).toBe(0);
+    expect(sim.of).toBe(true);
+  });
+
+  it("rotates right through OF with existing OF", () => {
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("load [1024]\nror\nhalt", OPCODES));
+    sim.memory[1024] = 0;
+    sim.of = true;
+
+    sim.run();
+
+    expect(sim.acc).toBe(-2147483648);
+    expect(sim.of).toBe(false);
+  });
 });
 
 type DataChunk = number | [value: number, count: number] | string;
@@ -950,12 +1046,12 @@ describe("simulator golden tests", () => {
 
     sim.run();
 
-    checkMemory(sim.memory, ["@skipto 300", 2, 5, 0, 313, "@skipto 400", 401, 2, 4, 0]);
-
     expect(sim.halted).toBe(true);
     expect(sim.pc).toBe(59);
     expect(sim.acc).toBe(0);
     expect(sim.mar).toBe(58);
     expect(sim.mbr).toBe(3);
+
+    checkMemory(sim.memory, ["@skipto 300", 2, 5, 0, 313, "@skipto 400", 401, 2, 4, 0]);
   });
 });
