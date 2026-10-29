@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assemble } from "./assemble";
-import { Simulator, Field } from "./simulator";
+import { AddressMode, encodeInstruction } from "./encoding";
+import { Simulator, Field, formatInstruction } from "./simulator";
 import { BUILTIN_OPCODES, createOpcodeTable, type OpcodeTable } from "./opcodes";
 import { I32_MIN, UOPS } from "./uops";
 
@@ -1134,6 +1135,8 @@ describe("simulator golden tests", () => {
 
     sim.run();
 
+    sim.showHistory(100000);
+
     expect(sim.halted).toBe(true);
     expect(sim.pc).toBe(59);
     expect(sim.acc).toBe(0);
@@ -1141,5 +1144,80 @@ describe("simulator golden tests", () => {
     expect(sim.mbr).toBe(3);
 
     checkMemory(sim.memory, ["@skipto 300", 2, 5, 0, 313, "@skipto 400", 401, 2, 4, 0]);
+  });
+});
+
+describe("showHistory", () => {
+  it("prints a full run's changes oldest first, one uop per line", () => {
+    expect.assertions(3);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD [1024]\nHALT", OPCODES));
+    sim.memory[1024] = 42;
+    sim.run();
+
+    const lines = sim.showHistory(99);
+    expect(lines).toEqual([
+      "MAR=0", // pcToMar
+      "MBR=0", // readMem
+      "IR=ADD 0", // mbrToIr
+      "PC=0", // incrementPc
+      "-", // decode
+      "MBR=262208", // irToMbr
+      "MAR=0", // mbrToMar
+      "MBR=1024", // readMem (old MBR = sign-extended operand)
+      "ACC=0 C=0 O=0 N=0 Z=0", // mAdd
+      "MAR=1024", // pcToMar
+      "MBR=42", // readMem
+      "IR=ADD [1024]", // mbrToIr
+      "PC=1", // incrementPc
+      "-", // decode
+      "-", // halt
+    ]);
+    expect(sim.showHistory(3)).toEqual(["PC=1", "-", "-"]);
+    expect(sim.showHistory(1)).toEqual(["-"]);
+  });
+
+  it("formats flag changes and memory writes", () => {
+    expect.assertions(3);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("STORE [1024]\nHALT", OPCODES));
+    sim.memory[1024] = 31415;
+    sim.run();
+
+    const lines = sim.showHistory(15);
+    expect(lines).toEqual([
+      "MAR=0",
+      "MBR=0",
+      "IR=ADD 0",
+      "PC=0",
+      "-",
+      "MBR=262209", // irToMbr
+      "MAR=0", // mbrToMar
+      "MBR=1024", // accToMbr (old MBR = sign-extended operand)
+      "mem[1024]=31415", // writeMem
+      "MAR=1024",
+      "MBR=0", // readMem (old MBR = acc = 0)
+      "IR=STORE [1024]",
+      "PC=1",
+      "-",
+      "-",
+    ]);
+    const srIndex = lines.indexOf("mem[1024]=31415");
+    expect(srIndex).toBe(8);
+    expect(lines).not.toContain("SR=");
+  });
+
+  it("decodes IR changes into normal assembler syntax", () => {
+    expect.assertions(6);
+    const word = (opcode: number, operand: number, addressMode: AddressMode): number =>
+      encodeInstruction({ opcode, operand, addressMode });
+    expect(formatInstruction(word(0, 4, AddressMode.Immediate), OPCODES)).toBe("ADD 4");
+    expect(formatInstruction(word(2, 302, AddressMode.Direct), OPCODES)).toBe("LOAD [302]");
+    expect(formatInstruction(word(2, 302, AddressMode.Indirect), OPCODES)).toBe("LOAD [mem 302]");
+    expect(formatInstruction(word(3, 0, AddressMode.Immediate), OPCODES)).toBe("HALT");
+    // A zero operand still prints for non-zero-argument instructions.
+    expect(formatInstruction(0, OPCODES)).toBe("ADD 0");
+    // The assembler encodes negative operands in two's complement.
+    expect(formatInstruction(word(0, 0xffffff, AddressMode.Immediate), OPCODES)).toBe("ADD -1");
   });
 });

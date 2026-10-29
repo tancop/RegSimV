@@ -1,6 +1,6 @@
-import { type Instruction } from "./encoding";
-import { compile, compileVariant, type CompiledOperation } from "./jit";
+import { AddressMode, decodeInstruction, type Instruction } from "./encoding";
 import type { OpcodeTable } from "./opcodes";
+import { compile, compileVariant, type CompiledOperation } from "./jit";
 import { UOPS, type UOp } from "./uops";
 
 export const MEMORY_SIZE = 2048;
@@ -16,6 +16,54 @@ export enum Field {
   IR = -4,
   SR = -5,
   ACC = -6,
+}
+
+/**
+ * Formats a 32-bit instruction word in normal assembler syntax, like
+ * `ADD 4` (immediate), `ADD [4]` (direct) or `ADD [mem 4]` (indirect).
+ * Operands are printed sign-extended, mirroring the assembler's signed
+ * 24-bit operand encoding. Falls back to `OP<n>` without an opcode table.
+ */
+export function formatInstruction(ins: number, opcodes?: OpcodeTable): string {
+  const { opcode, operand, addressMode } = decodeInstruction(ins);
+  const name = opcodes?.indexToName[opcode] ?? `OP${opcode}`;
+  if (opcodes?.uops[opcode]?.isZeroArgument) {
+    return name;
+  }
+  // The operand field is a signed 24-bit value; sign-extend for display.
+  const value = (operand << 8) >> 8;
+  switch (addressMode) {
+    case AddressMode.Immediate:
+      return `${name} ${value}`;
+    case AddressMode.Direct:
+      return `${name} [${value}]`;
+    case AddressMode.Indirect:
+      return `${name} [mem ${value}]`;
+  }
+}
+
+// Formats one recorded change, `value` being the field's value before the
+// modification. SR entries unpack into the four flag bits (see srValue).
+function formatField(field: number, value: number, opcodes?: OpcodeTable): string {
+  switch (field) {
+    case Field.MAR:
+      return `MAR=${value}`;
+    case Field.MBR:
+      return `MBR=${value}`;
+    case Field.PC:
+      return `PC=${value}`;
+    case Field.IR:
+      return `IR=${formatInstruction(value, opcodes)}`;
+    case Field.SR:
+      return (
+        `C=${(value >> 3) & 1} O=${(value >> 2) & 1}` + ` N=${(value >> 1) & 1} Z=${value & 1}`
+      );
+    case Field.ACC:
+      return `ACC=${value}`;
+    default:
+      // Non-negative fields are memory cell numbers.
+      return `mem[${field}]=${value}`;
+  }
 }
 
 export class Simulator {
@@ -42,6 +90,7 @@ export class Simulator {
 
   decodedInstruction?: Instruction;
 
+  opcodes?: OpcodeTable;
   compiledOps: CompiledOperation[] = [];
   currentOp?: IterableIterator<number>;
 
@@ -137,6 +186,65 @@ export class Simulator {
     }
   }
 
+  // Prints and returns the changes recorded by the last `n` executed uops,
+  // oldest first, all changes of one uop on one line: `MBR=100 MAR=-1`,
+  // flags as `C=0 O=1 N=0 Z=0`, IR decoded as `ADD 4`. Uops that changed no
+  // fields print a single `-`. Shows fewer than `n` lines if the history
+  // does not go back that far.
+  showHistory(n: number): string[] {
+    // Backward cursor over the parallel history arrays, spilling into
+    // rotated-out arrays exactly like `restore` does.
+    let fields = this.historyFields;
+    let values = this.historyValues;
+    let counts = this.historyCounts;
+    let fIdx = this.historyFieldsIdx;
+    let vIdx = this.historyValuesIdx;
+    let cIdx = this.historyCountsIdx;
+    const prevFields = [...this.prevHistoryFields];
+    const prevValues = [...this.prevHistoryValues];
+    const prevCounts = [...this.prevHistoryCounts];
+
+    const readField = (): number => {
+      if (fIdx === 0) {
+        const prev = prevFields.pop() as Int16Array<ArrayBuffer> | undefined;
+        if (!prev) throw new Error("No history to show");
+        fields = prev;
+        fIdx = HISTORY_ARRAY_LENGTH;
+      }
+      return fields[--fIdx];
+    };
+    const readValue = (): number => {
+      if (vIdx === 0) {
+        const prev = prevValues.pop() as Int32Array<ArrayBuffer> | undefined;
+        if (!prev) throw new Error("No history to show");
+        values = prev;
+        vIdx = HISTORY_ARRAY_LENGTH;
+      }
+      return values[--vIdx];
+    };
+
+    const groups: string[][] = [];
+    for (let i = 0; i < n; i++) {
+      if (cIdx === 0) {
+        const prev = prevCounts.pop() as Uint8Array<ArrayBuffer> | undefined;
+        if (!prev) break; // Ran out of history; show what we have.
+        counts = prev;
+        cIdx = HISTORY_ARRAY_LENGTH;
+      }
+      const count = counts[--cIdx];
+      const parts: string[] = [];
+      for (let j = 0; j < count; j++) {
+        // Fields are read newest-first, so push and reverse after.
+        parts.push(formatField(readField(), readValue(), this.opcodes));
+      }
+      groups.push(parts.reverse());
+    }
+
+    const lines = groups.reverse().map((parts) => parts.join(" ") || "-");
+    console.log(lines.join("\n"));
+    return lines;
+  }
+
   reset(): void {
     this.mar = 0;
     this.mbr = 0;
@@ -165,6 +273,7 @@ export class Simulator {
     this.halted = false;
 
     this.compiledOps = compile(opcodes.uops);
+    this.opcodes = opcodes;
   }
 
   checkAddress(addr: number): void {
