@@ -1,34 +1,56 @@
 import { AddressMode, decodeInstruction } from "./encoding";
-import type { Simulator } from "./simulator";
+import { Field, type Simulator } from "./simulator";
 
 export type UOps = Record<string, (st: Simulator) => void>;
 
 export const I32_MAX = 2147483647;
 export const I32_MIN = -2147483648;
 
+// Packs the flags into a single number, in the same format srToAcc uses.
+// Changed flags are saved to history as one Field.SR entry in this format.
+function srValue(st: Simulator): number {
+  return (+st.cf << 3) | (+st.of << 2) | (+st.sf << 1) | +st.zf;
+}
+
 export const UOPS = {
   accToMbr(st) {
+    st.save(Field.MBR, st.mbr);
+    st.saveCount(1);
     st.mbr = st.acc;
   },
   mbrToAcc(st) {
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
     st.acc = st.mbr;
   },
   pcToMar(st) {
+    st.save(Field.MAR, st.mar);
+    st.saveCount(1);
     st.mar = st.pc;
   },
   marToPc(st) {
+    st.save(Field.PC, st.pc);
+    st.saveCount(1);
     st.pc = st.mar;
   },
   mbrToPc(st) {
+    st.save(Field.PC, st.pc);
+    st.saveCount(1);
     st.pc = st.mbr;
   },
   pcToMbr(st) {
+    st.save(Field.MBR, st.mbr);
+    st.saveCount(1);
     st.mbr = st.pc;
   },
   mbrToIr(st) {
+    st.save(Field.IR, st.ir);
+    st.saveCount(1);
     st.ir = st.mbr;
   },
   irToMbr(st) {
+    st.save(Field.MBR, st.mbr);
+    st.saveCount(1);
     const operand = st.decodedInstruction?.operand;
     if (operand === undefined) {
       throw new Error("No decoded instruction to get operand from");
@@ -37,26 +59,37 @@ export const UOPS = {
     st.mbr = ((operand << 8) >> 8) >>> 0;
   },
   marToMbr(st) {
+    st.save(Field.MBR, st.mbr);
+    st.saveCount(1);
     st.mbr = st.mar;
   },
   mbrToMar(st) {
+    st.save(Field.MAR, st.mar);
+    st.saveCount(1);
     st.mar = st.mbr;
   },
 
   readMem(st) {
+    st.save(Field.MBR, st.mbr);
+    st.saveCount(1);
     st.checkAddress(st.mar);
     st.mbr = st.memory[st.mar];
   },
   writeMem(st) {
+    st.save(st.mar, st.memory[st.mar]);
+    st.saveCount(1);
     st.checkAddress(st.mar);
     st.memory[st.mar] = st.mbr;
   },
 
   incrementPc(st) {
+    st.save(Field.PC, st.pc);
+    st.saveCount(1);
     st.pc = (st.pc + 1) >>> 0;
   },
 
   decode(st) {
+    st.saveCount(0);
     st.decodedInstruction = decodeInstruction(st.ir);
     const operation = st.compiledOps[st.decodedInstruction.opcode];
     let variant: ((st: Simulator, ops: UOps) => IterableIterator<number>) | undefined;
@@ -80,6 +113,9 @@ export const UOPS = {
   },
 
   mSub(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     const a = st.acc | 0;
     const b = st.mbr | 0;
     const result = (a - b) | 0;
@@ -88,6 +124,9 @@ export const UOPS = {
     st.acc = result;
   },
   mAdd(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     const a = st.acc | 0;
     const b = st.mbr | 0;
     const result = (a + b) | 0;
@@ -96,6 +135,9 @@ export const UOPS = {
     st.acc = result;
   },
   mMul(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     const a = st.acc | 0;
     const b = st.mbr | 0;
     const result = Math.imul(a, b);
@@ -104,6 +146,9 @@ export const UOPS = {
     st.acc = result;
   },
   mDiv(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     const divisor = st.mbr | 0;
     if (divisor === 0) {
       st.acc = 0;
@@ -119,59 +164,86 @@ export const UOPS = {
   },
 
   notAcc(st) {
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
     st.acc = ~st.acc >>> 0;
   },
   mAnd(st) {
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
     st.acc = (st.acc & st.mbr) >>> 0;
   },
   mOr(st) {
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
     st.acc = (st.acc | st.mbr) >>> 0;
   },
   mXor(st) {
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
     st.acc = (st.acc ^ st.mbr) >>> 0;
   },
 
   cmp(st) {
+    st.save(Field.SR, srValue(st));
+    st.saveCount(1);
     st.cf = st.acc == st.mbr;
   },
 
   testAcc(st) {
+    st.saveCount(0);
     if (st.acc === 0) {
       st.skipNext = true;
     }
   },
   testNotAcc(st) {
+    st.saveCount(0);
     if (st.acc !== 0) {
       st.skipNext = true;
     }
   },
   testCf(st) {
+    st.saveCount(0);
     if (st.cf) {
       st.skipNext = true;
     }
   },
   testNotCf(st) {
+    st.saveCount(0);
     if (!st.cf) {
       st.skipNext = true;
     }
   },
 
   incrementAcc(st) {
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
     st.acc = (st.acc + 1) >>> 0;
   },
   decrementAcc(st) {
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
     st.acc = (st.acc - 1) >>> 0;
   },
 
   lshiftAcc(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     st.of = (st.acc & (1 << 31)) != 0;
     st.acc = (st.acc << 1) >>> 0;
   },
   rshiftAcc(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     st.of = (st.acc & 1) != 0;
     st.acc = (st.acc >>> 1) >>> 0;
   },
   lshiftAccOf(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     let result = (st.acc << 1) >>> 0;
     if (st.of) {
       result |= 1;
@@ -180,6 +252,9 @@ export const UOPS = {
     st.acc = result;
   },
   rshiftAccOf(st) {
+    st.save(Field.ACC, st.acc);
+    st.save(Field.SR, srValue(st));
+    st.saveCount(2);
     let result = (st.acc >> 1) >>> 0;
     if (st.of) {
       result |= 1 << 31;
@@ -189,6 +264,8 @@ export const UOPS = {
   },
 
   clearSr(st) {
+    st.save(Field.SR, srValue(st));
+    st.saveCount(1);
     st.cf = false;
     st.zf = false;
     st.sf = false;
@@ -196,25 +273,38 @@ export const UOPS = {
   },
 
   setCf(st) {
+    st.save(Field.SR, srValue(st));
+    st.saveCount(1);
     st.cf = true;
   },
   setZf(st) {
+    st.save(Field.SR, srValue(st));
+    st.saveCount(1);
     st.zf = true;
   },
   setSf(st) {
+    st.save(Field.SR, srValue(st));
+    st.saveCount(1);
     st.sf = true;
   },
   setOf(st) {
+    st.save(Field.SR, srValue(st));
+    st.saveCount(1);
     st.of = true;
   },
 
   srToAcc(st) {
-    st.acc = (+st.cf << 3) | (+st.of << 2) | (+st.sf << 1) | +st.zf;
+    st.save(Field.ACC, st.acc);
+    st.saveCount(1);
+    st.acc = srValue(st);
   },
 
-  nop(_st) {},
+  nop(st) {
+    st.saveCount(0);
+  },
 
   halt(st) {
+    st.saveCount(0);
     st.halted = true;
   },
 } satisfies UOps;

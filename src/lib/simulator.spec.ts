@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { assemble } from "./assemble";
-import { Simulator } from "./simulator";
+import { Simulator, Field } from "./simulator";
 import { BUILTIN_OPCODES, createOpcodeTable, type OpcodeTable } from "./opcodes";
-import { I32_MIN } from "./uops";
+import { I32_MIN, UOPS } from "./uops";
 
 const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
@@ -360,6 +360,94 @@ function program(lines: string[], opcodes: OpcodeTable = OPCODES): number[] {
   }
   return assemble(expanded.join("\n"), opcodes);
 }
+
+describe("simulator time travel", () => {
+  it("restores a modified memory cell", () => {
+    expect.assertions(2);
+    const sim = new Simulator();
+    sim.mar = 500;
+    sim.mbr = 7;
+    sim.memory[500] = 42;
+    UOPS.writeMem(sim);
+    expect(sim.memory[500]).toBe(7);
+    sim.restore();
+    expect(sim.memory[500]).toBe(42);
+  });
+
+  it("restores flags saved as a packed SR value", () => {
+    expect.assertions(5);
+    const sim = new Simulator();
+    sim.cf = true;
+    sim.sf = true;
+    UOPS.setOf(sim);
+    expect(sim.of).toBe(true);
+    sim.restore();
+    expect(sim.of).toBe(false);
+    expect(sim.cf).toBe(true);
+    expect(sim.sf).toBe(true);
+    expect(sim.zf).toBe(false);
+  });
+
+  it("restores acc through the srToAcc flag format", () => {
+    expect.assertions(2);
+    const sim = new Simulator();
+    sim.cf = true;
+    sim.of = true;
+    sim.sf = true;
+    sim.zf = true;
+    sim.acc = 123;
+    UOPS.srToAcc(sim);
+    expect(sim.acc).toBe(0b1111);
+    sim.restore();
+    expect(sim.acc).toBe(123);
+  });
+
+  it("restores the initial state by undoing a full instruction", () => {
+    expect.assertions(11);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD 5\nHALT", OPCODES));
+    sim.step();
+    expect(sim.acc).toBe(5);
+    expect(sim.pc).toBe(1);
+    while (sim.historyCountsIdx > 0 || sim.prevHistoryCounts.length > 0) {
+      sim.restore();
+    }
+    expect(sim.acc).toBe(0);
+    expect(sim.pc).toBe(0);
+    expect(sim.mar).toBe(0);
+    expect(sim.mbr).toBe(0);
+    expect(sim.ir).toBe(0);
+    expect(sim.cf).toBe(false);
+    expect(sim.zf).toBe(false);
+    expect(sim.sf).toBe(false);
+    expect(sim.of).toBe(false);
+  });
+
+  it("rotates history arrays into prevHistory on overflow", () => {
+    expect.assertions(6);
+    const sim = new Simulator();
+    const len = sim.historyFields.length;
+    for (let i = 0; i < len + 1; i++) {
+      sim.save(Field.ACC, i);
+      sim.saveCount(1);
+    }
+    sim.acc = 999;
+    expect(sim.prevHistoryFields).toHaveLength(1);
+    expect(sim.prevHistoryValues).toHaveLength(1);
+    expect(sim.prevHistoryCounts).toHaveLength(1);
+    for (let i = 0; i < len + 1; i++) {
+      sim.restore();
+    }
+    expect(sim.acc).toBe(0);
+    expect(sim.prevHistoryFields).toHaveLength(0);
+    expect(sim.historyFieldsIdx).toBe(0);
+  });
+
+  it("throws when restoring with no history", () => {
+    expect.assertions(1);
+    expect(() => new Simulator().restore()).toThrow();
+  });
+});
 
 describe("simulator golden tests", () => {
   it("runs 2024_vzor_priklad_RegSim_pohyb_po_sachovnici.regs", () => {
