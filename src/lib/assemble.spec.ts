@@ -199,10 +199,11 @@ describe("assemble", () => {
   });
 
   it("loadProgram stores ACC through the pointer given by [mem x]", () => {
-    expect.assertions(3);
+    expect.assertions(4);
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("add 7\nstore [mem 1025]\nhalt", OPCODES));
-    sim.memory[1025] = 1026; // pointer cell: mem[1025] holds the target address
+    sim.store(1025, 1026); // pointer cell: mem[1025] holds the target address
+    expect(sim.initBoundaries).toEqual([2, 1024, 1025]); // program 0-2, pointer cell 1025
 
     sim.run();
 
@@ -235,6 +236,9 @@ describe("assemble", () => {
         OPCODES,
       ),
     );
+
+    sim.store(1024, 0); // INC reads before writing, so pre-initialize both.
+    sim.store(1025, 0);
 
     sim.run();
 

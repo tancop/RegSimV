@@ -73,12 +73,17 @@ export const UOPS = {
     st.save(Field.MBR, st.mbr);
     st.saveCount(1);
     st.checkAddress(st.mar);
+    if (!st.isInitialized(st.mar)) {
+      st.halted = true;
+      throw new Error(`Read from uninitialized memory: ${st.mar}`);
+    }
     st.mbr = st.memory[st.mar];
   },
   writeMem(st) {
     st.save(st.mar, st.memory[st.mar]);
     st.saveCount(1);
     st.checkAddress(st.mar);
+    st.markInitialized(st.mar);
     st.memory[st.mar] = st.mbr;
   },
 

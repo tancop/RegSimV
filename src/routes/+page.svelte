@@ -35,7 +35,7 @@
       if (addressStr && valueStr) {
         const address = parseInt(addressStr.trim(), 10);
         const value = parseInt(valueStr.trim(), 10);
-        sim.memory[address] = value;
+        sim.store(address, value);
       }
     }
   }

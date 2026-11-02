@@ -84,6 +84,14 @@ export class Simulator {
   memory = new Uint32Array(MEMORY_SIZE);
   dataMemoryStart = 1024;
 
+  // Ends of the alternating initialized/uninitialized memory spans, as
+  // addresses where the init state changes. Example: initialized spans
+  // 0-10, 14, 17-25 are `[10, 13, 14, 16, 25]`. Past the last entry memory
+  // is always uninitialized. See `isInitialized` / `markInitialized`.
+  // Note: `restore` does not unwind this list, so a backstep over writeMem
+  // keeps the cell marked initialized.
+  initBoundaries: number[] = [];
+
   // Control
   halted = false;
   skipNext = false;
@@ -259,6 +267,7 @@ export class Simulator {
     this.skipNext = false;
     this.decodedInstruction = undefined;
     this.memory.fill(0);
+    this.initBoundaries.length = 0;
     this.uopsExecuted = 0;
   }
 
@@ -267,7 +276,7 @@ export class Simulator {
       throw new RangeError("Program does not fit in memory");
     }
     for (let i = 0; i < program.length; i++) {
-      this.memory[start + i] = program[i] >>> 0;
+      this.store(start + i, program[i]);
     }
     this.pc = start;
     this.halted = false;
@@ -282,6 +291,80 @@ export class Simulator {
     }
   }
 
+  // True if `addr` has been written at least once. Walks `initBoundaries`
+  // backward, inverting a boolean starting from the uninitialized state
+  // past the last boundary at every boundary `>= addr` it passes.
+  isInitialized(addr: number): boolean {
+    let initialized = false;
+    const b = this.initBoundaries;
+    for (let i = b.length - 1; i >= 0 && b[i] >= addr; i--) {
+      initialized = !initialized;
+    }
+    return initialized;
+  }
+
+  // Marks the single address `addr` as initialized by splicing
+  // `initBoundaries` instead of rebuilding it with a linear scan. Walks
+  // backward just like `isInitialized`; no-op when already initialized.
+  markInitialized(addr: number): void {
+    const b = this.initBoundaries;
+    let i = b.length - 1;
+    let initialized = false;
+    while (i >= 0 && b[i] >= addr) {
+      initialized = !initialized;
+      i--;
+    }
+    if (initialized) {
+      return;
+    }
+    // `addr` lies in the uninitialized span (prevEnd, ...] where prevEnd is
+    // -1 when the span starts at address 0. When the span ends at b[i + 1]
+    // it is followed by an initialized span, with which a write at that
+    // boundary merges. A span starting past the last boundary is
+    // open-ended toward higher addresses.
+    const prevEnd = i >= 0 ? b[i] : -1;
+    if (i === b.length - 1) {
+      // Span past the last boundary.
+      if (i >= 0 && addr === prevEnd + 1) {
+        b[i] = addr; // Extends the final initialized span to addr.
+      } else if (addr === 0) {
+        b.push(addr); // First ever write: [0, 0] initialized, then uninit.
+      } else {
+        b.push(addr - 1, addr); // Uninit (prevEnd, addr-1], init [addr].
+      }
+      return;
+    }
+    const end = b[i + 1];
+    if (addr === prevEnd + 1 && addr === end) {
+      // addr bridges the initialized spans on both sides; the two
+      // boundaries around the singleton uninitialized gap vanish.
+      b.splice(i, 2);
+    } else if (addr === end) {
+      // The new initialized singleton merges with the span above `end`;
+      // only the boundary between prevEnd and addr remains.
+      b[i + 1] = addr - 1;
+    } else if (addr === prevEnd + 1) {
+      if (i >= 0) {
+        // The initialized span ending at prevEnd now ends at addr, followed
+        // by the still-uninitialized tail up to `end`.
+        b[i] = addr;
+      } else {
+        b.splice(0, 0, addr); // addr = 0 starts the first initialized span.
+      }
+    } else {
+      // New initialized singleton strictly inside the uninitialized span.
+      b.splice(i + 1, 0, addr - 1, addr);
+    }
+  }
+
+  // Writes a data word from outside the ISA (UI, test setup) and marks the
+  // address initialized like `writeMem` does.
+  store(address: number, value: number): void {
+    this.checkAddress(address);
+    this.markInitialized(address);
+    this.memory[address] = value >>> 0;
+  }
+
   // Returns true if instruction is complete, false if more steps are needed
   uStep(): boolean {
     if (this.halted) return true;
@@ -293,6 +376,7 @@ export class Simulator {
   }
 
   step(): void {
+    if (this.halted) return;
     this.currentOp = this.decodeSequence(this, UOPS);
     while (!this.uStep()) {} // decode instruction
     while (!this.uStep()) {} // execute instruction

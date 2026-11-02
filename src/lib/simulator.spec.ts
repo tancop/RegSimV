@@ -26,12 +26,62 @@ describe("simulator", () => {
     expect(() => sim.step()).toThrow(RangeError);
   });
 
+  it("tracks initialized spans as boundary addresses", () => {
+    expect.assertions(3);
+    const sim = new Simulator();
+    for (let i = 0; i <= 10; i++) sim.store(i, i);
+    sim.store(14, 14);
+    for (let i = 17; i <= 25; i++) sim.store(i, i);
+    expect(sim.initBoundaries).toEqual([10, 13, 14, 16, 25]);
+    expect([0, 5, 10, 14, 17, 25].every((a) => sim.isInitialized(a))).toBe(true);
+    expect([11, 12, 13, 15, 16, 26, 2047].every((a) => !sim.isInitialized(a))).toBe(true);
+  });
+
+  it("edits boundaries instead of rebuilding when writing new locations", () => {
+    expect.assertions(7);
+    const sim = new Simulator();
+    sim.store(12, 1); // First write: leading uninitialized span, then a singleton.
+    expect(sim.initBoundaries).toEqual([11, 12]);
+    sim.store(13, 1); // Extends the open initialized span.
+    expect(sim.initBoundaries).toEqual([11, 13]);
+    sim.store(10, 1); // Singleton strictly inside an uninitialized span.
+    expect(sim.initBoundaries).toEqual([9, 10, 11, 13]);
+    sim.store(11, 1); // Closes the gap: both neighboring boundaries merge.
+    expect(sim.initBoundaries).toEqual([9, 13]);
+    sim.store(20, 1); // New span past the last boundary.
+    expect(sim.initBoundaries).toEqual([9, 13, 19, 20]);
+    sim.store(14, 1); // Extends the boundary span ending at 13.
+    expect(sim.initBoundaries).toEqual([9, 14, 19, 20]);
+    sim.store(19, 1); // Merges with the initialized span above 19.
+    expect(sim.initBoundaries).toEqual([9, 14, 18, 20]);
+  });
+
+  it("halts on a read from uninitialized memory", () => {
+    expect.assertions(3);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("LOAD [2000]\nHALT", OPCODES));
+    expect(() => sim.run()).toThrow(/uninitialized/i);
+    expect(sim.halted).toBe(true);
+    sim.step(); // Stays halted instead of re-executing the instruction.
+    expect(sim.pc).toBe(1); // PC already advanced past the instruction.
+  });
+
+  it("reads data initialized through store", () => {
+    expect.assertions(1);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("LOAD [1024]\nHALT", OPCODES));
+    sim.store(1024, 41);
+    sim.run();
+    expect(sim.acc).toBe(41);
+  });
+
   it("runs loop with INC and CMP", () => {
     const sim = new Simulator();
     sim.loadProgram(
       OPCODES,
       assemble("load [1024]\ncmp 5\njc 5\ninc [1024]\njmp 0\nhalt", OPCODES),
     );
+    sim.store(1024, 0);
     sim.run();
     expect(sim.halted).toBe(true);
     expect(sim.memory[1024]).toBe(5);
@@ -66,7 +116,7 @@ describe("simulator", () => {
       ]),
     );
 
-    data(sim.memory, ["@skipto 1024", 0, 0, 0, 0]);
+    data(sim, ["@skipto 1024", 0, 0, 0, 0]);
 
     const start = performance.now();
     const steps = sim.run(10_000_000);
@@ -84,7 +134,7 @@ describe("simulator", () => {
   it("divides two positive numbers", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\ndiv 43\nhalt", OPCODES));
-    sim.memory[1024] = 4085;
+    sim.store(1024, 4085);
 
     sim.run();
 
@@ -95,7 +145,7 @@ describe("simulator", () => {
   it("uses floor division", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\ndiv 63\nhalt", OPCODES));
-    sim.memory[1024] = 1738;
+    sim.store(1024, 1738);
 
     sim.run();
 
@@ -106,7 +156,7 @@ describe("simulator", () => {
   it("divides by a negative number", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\ndiv -63\nhalt", OPCODES));
-    sim.memory[1024] = 1738;
+    sim.store(1024, 1738);
 
     sim.run();
 
@@ -117,7 +167,7 @@ describe("simulator", () => {
   it("divides two large negative numbers", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\ndiv -808\nhalt", OPCODES));
-    sim.memory[1024] = -7355608;
+    sim.store(1024, -7355608);
 
     sim.run();
 
@@ -128,7 +178,7 @@ describe("simulator", () => {
   it("sets OF=1 and ACC=0 on division by zero", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\ndiv 0\nhalt", OPCODES));
-    sim.memory[1024] = 1738;
+    sim.store(1024, 1738);
 
     sim.run();
 
@@ -139,7 +189,7 @@ describe("simulator", () => {
   it("sets OF=1 and leaves ACC unchanged on overflowing division", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\ndiv -1\nhalt", OPCODES));
-    sim.memory[1024] = I32_MIN;
+    sim.store(1024, I32_MIN);
 
     sim.run();
 
@@ -150,7 +200,7 @@ describe("simulator", () => {
   it("multiplies two positive numbers", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nmul 831\nhalt", OPCODES));
-    sim.memory[1024] = 821;
+    sim.store(1024, 821);
 
     sim.run();
 
@@ -161,7 +211,7 @@ describe("simulator", () => {
   it("multiplies with a negative number", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nmul -831\nhalt", OPCODES));
-    sim.memory[1024] = 821;
+    sim.store(1024, 821);
 
     sim.run();
 
@@ -172,7 +222,7 @@ describe("simulator", () => {
   it("multiplies two negative numbers", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nmul -831\nhalt", OPCODES));
-    sim.memory[1024] = -821;
+    sim.store(1024, -821);
 
     sim.run();
 
@@ -183,8 +233,8 @@ describe("simulator", () => {
   it("sets OF=1 and NF=1 on overflowing multiply", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nmul [1025]\nhalt", OPCODES));
-    sim.memory[1024] = 1738;
-    sim.memory[1025] = 7183015;
+    sim.store(1024, 1738);
+    sim.store(1025, 7183015);
 
     sim.run();
 
@@ -198,7 +248,7 @@ describe("simulator", () => {
   it("shifts left normal positive number", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nshl\nhalt", OPCODES));
-    sim.memory[1024] = 21;
+    sim.store(1024, 21);
 
     sim.run();
 
@@ -210,7 +260,7 @@ describe("simulator", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nshl\nhalt", OPCODES));
 
-    sim.memory[1024] = -2147483648;
+    sim.store(1024, -2147483648);
 
     sim.run();
 
@@ -221,7 +271,7 @@ describe("simulator", () => {
   it("shifts right normal positive number", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nshr\nhalt", OPCODES));
-    sim.memory[1024] = 42;
+    sim.store(1024, 42);
 
     sim.run();
 
@@ -232,7 +282,7 @@ describe("simulator", () => {
   it("shifts right and sets OF when LSB is 1", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nshr\nhalt", OPCODES));
-    sim.memory[1024] = 1;
+    sim.store(1024, 1);
 
     sim.run();
 
@@ -243,7 +293,7 @@ describe("simulator", () => {
   it("rotates left through OF without existing OF", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nrol\nhalt", OPCODES));
-    sim.memory[1024] = -2147483648;
+    sim.store(1024, -2147483648);
     sim.of = false;
 
     sim.run();
@@ -255,7 +305,7 @@ describe("simulator", () => {
   it("rotates left through OF with existing OF", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nrol\nhalt", OPCODES));
-    sim.memory[1024] = 0;
+    sim.store(1024, 0);
 
     sim.of = true;
 
@@ -268,7 +318,7 @@ describe("simulator", () => {
   it("rotates right through OF without existing OF", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nror\nhalt", OPCODES));
-    sim.memory[1024] = 1;
+    sim.store(1024, 1);
     sim.of = false;
 
     sim.run();
@@ -280,7 +330,7 @@ describe("simulator", () => {
   it("rotates right through OF with existing OF", () => {
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("load [1024]\nror\nhalt", OPCODES));
-    sim.memory[1024] = 0;
+    sim.store(1024, 0);
     sim.of = true;
 
     sim.run();
@@ -329,11 +379,10 @@ function* walkChunks(chunks: DataChunk[], memoryLength: number): Generator<[numb
   }
 }
 
-function data(memory: Uint32Array, chunks: DataChunk[]): Uint32Array {
-  for (const [address, value] of walkChunks(chunks, memory.length)) {
-    memory[address] = value;
+function data(sim: Simulator, chunks: DataChunk[]): void {
+  for (const [address, value] of walkChunks(chunks, sim.memory.length)) {
+    sim.store(address, value);
   }
-  return memory;
 }
 
 function checkMemory(memory: Uint32Array, chunks: DataChunk[]): void {
@@ -368,7 +417,7 @@ describe("simulator time travel", () => {
     const sim = new Simulator();
     sim.mar = 500;
     sim.mbr = 7;
-    sim.memory[500] = 42;
+    sim.store(500, 42);
     UOPS.writeMem(sim);
     expect(sim.memory[500]).toBe(7);
     sim.restore();
@@ -498,7 +547,7 @@ describe("simulator golden tests", () => {
       0,
     );
 
-    data(sim.memory, ["@skipto 300", 3, 3, 305, "@skipto 305", [1, 3], [2, 3], [3, 5], [4, 5], 0]);
+    data(sim, ["@skipto 300", 3, 3, 305, "@skipto 305", [1, 3], [2, 3], [3, 5], [4, 5], 0]);
 
     sim.run();
 
@@ -581,7 +630,7 @@ describe("simulator golden tests", () => {
       ]),
     );
 
-    data(sim.memory, [
+    data(sim, [
       "@skipto 300",
       2,
       2,
@@ -710,7 +759,7 @@ describe("simulator golden tests", () => {
       ),
     );
 
-    data(sim.memory, [
+    data(sim, [
       "@skipto 300",
       3,
       3,
@@ -845,7 +894,7 @@ describe("simulator golden tests", () => {
       ]),
     );
 
-    data(sim.memory, ["@skipto 300", 1, 5, 0, 305, "@skipto 305", 1, 0]);
+    data(sim, ["@skipto 300", 1, 5, 0, 305, "@skipto 305", 1, 0]);
 
     sim.run();
 
@@ -1111,7 +1160,7 @@ describe("simulator golden tests", () => {
       ),
     );
 
-    data(sim.memory, [
+    data(sim, [
       "@skipto 300",
       3,
       3,
@@ -1133,9 +1182,11 @@ describe("simulator golden tests", () => {
       0,
     ]);
 
-    sim.run();
-
-    sim.showHistory(100000);
+    try {
+      sim.run();
+    } catch {
+      sim.showHistory(100000);
+    }
 
     expect(sim.halted).toBe(true);
     expect(sim.pc).toBe(59);
@@ -1152,7 +1203,7 @@ describe("showHistory", () => {
     expect.assertions(3);
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("ADD [1024]\nHALT", OPCODES));
-    sim.memory[1024] = 42;
+    sim.store(1024, 42);
     sim.run();
 
     const lines = sim.showHistory(99);
@@ -1181,7 +1232,7 @@ describe("showHistory", () => {
     expect.assertions(3);
     const sim = new Simulator();
     sim.loadProgram(OPCODES, assemble("STORE [1024]\nHALT", OPCODES));
-    sim.memory[1024] = 31415;
+    sim.store(1024, 31415);
     sim.run();
 
     const lines = sim.showHistory(15);
