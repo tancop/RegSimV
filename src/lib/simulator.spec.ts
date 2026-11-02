@@ -391,7 +391,7 @@ function checkMemory(memory: Uint32Array, chunks: DataChunk[]): void {
   }
 }
 
-function program(lines: string[], opcodes: OpcodeTable = OPCODES): number[] {
+function program(lines: string[], opcodes: OpcodeTable = OPCODES): (number | undefined)[] {
   const expanded: string[] = [];
   for (const line of lines) {
     const trimmed = line.trim();

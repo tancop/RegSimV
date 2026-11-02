@@ -271,12 +271,18 @@ export class Simulator {
     this.uopsExecuted = 0;
   }
 
-  loadProgram(opcodes: OpcodeTable, program: ArrayLike<number>, start = 0): void {
+  loadProgram(
+    opcodes: OpcodeTable,
+    program: ArrayLike<number | undefined>,
+    start = 0,
+  ): void {
     if (start < 0 || start + program.length > MEMORY_SIZE) {
       throw new RangeError("Program does not fit in memory");
     }
     for (let i = 0; i < program.length; i++) {
-      this.store(start + i, program[i]);
+      // `undefined` reserves the address without initializing it, so a read
+      // from that cell traps via the uninitialized-memory check.
+      if (program[i] !== undefined) this.store(start + i, program[i] as number);
     }
     this.pc = start;
     this.halted = false;

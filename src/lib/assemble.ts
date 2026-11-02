@@ -79,17 +79,26 @@ function assertModeSupported(
  * e.g. `[mem 302]`, `[mem302]`, `[ mem 302 ]`), bare number = immediate.
  * Numeric operands are signed and must fit in 24 bits (`-8388608..8388607`);
  * negative values are encoded as two's complement.
- * `#` starts a comment. Returns 32-bit words.
+ * `#` starts a comment. Returns 32-bit words; blank lines reserve one word
+ * each, emitted as `undefined` so the cell stays uninitialized (reads trap).
  * Throws {@link AssembleError} on invalid input; see {@link AssembleErrorType}.
  */
-export function assemble(source: string, opcodes: OpcodeTable): number[] {
-  const program: number[] = [];
-  const lines = source.split("\n");
+export function assemble(source: string, opcodes: OpcodeTable): (number | undefined)[] {
+  const program: (number | undefined)[] = [];
+  // A single trailing newline terminates the last line rather than opening
+  // a new blank one, so it does not reserve a word.
+  const lines = source.replace(/\n$/, "").split("\n");
   const labels: Record<string, number> = {};
+  // Address of the next word to be emitted. Blank lines reserve one word
+  // each; comment-only lines and label-only lines emit nothing.
+  let address = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].split("#")[0].trim();
-    if (!line) continue;
+    if (!line) {
+      if (lines[i].trim() === "") address++;
+      continue;
+    }
 
     const [label, rest, bad] = line.split(":").map((s) => s.trim());
 
@@ -110,14 +119,20 @@ export function assemble(source: string, opcodes: OpcodeTable): number[] {
         );
       }
 
-      labels[label.toLowerCase()] = i;
+      labels[label.toLowerCase()] = address;
       lines[i] = rest;
+      address++;
     }
+    // Plain instruction lines without a label also emit one word.
+    else if (!line.includes(":")) address++;
   }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].split("#")[0].trim();
-    if (!line) continue;
+    if (!line) {
+      if (lines[i].trim() === "") program.push(undefined);
+      continue;
+    }
 
     const firstSpace = line.search(/\s/);
     const mnemonicRaw = firstSpace === -1 ? line : line.slice(0, firstSpace);
@@ -209,6 +224,7 @@ export function assemble(source: string, opcodes: OpcodeTable): number[] {
     }
 
     program.push(encodeInstruction({ opcode, operand, addressMode }));
+    address++;
   }
   return program;
 }

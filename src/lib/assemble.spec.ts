@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { assemble, AssembleError, AssembleErrorType } from "./assemble";
-import { AddressMode, decodeInstruction, type Instruction } from "./encoding";
+import {
+  AddressMode,
+  decodeInstruction,
+  encodeInstruction,
+  type Instruction,
+} from "./encoding";
 import { BUILTIN_OPCODES, createOpcodeTable } from "./opcodes";
 import { Simulator } from "./simulator";
 
@@ -121,12 +126,30 @@ describe("assemble", () => {
     } satisfies Instruction);
   });
 
-  it("assembles a multi-line program and skips blank lines", () => {
+  it("assembles a multi-line program, reserving blank lines as uninitialized words", () => {
     expect.assertions(1);
-    expect(assemble("\nadd 5\n\n   \nhalt\n", OPCODES).map(decodeInstruction)).toEqual([
-      { opcode: 0, operand: 5, addressMode: AddressMode.Immediate },
-      { opcode: 3, operand: 0, addressMode: AddressMode.Immediate },
-    ] satisfies Instruction[]);
+    expect(assemble("\nadd 5\n\n   \nhalt\n", OPCODES)).toEqual([
+      undefined,
+      encodeInstruction({ opcode: 0, operand: 5, addressMode: AddressMode.Immediate }),
+      undefined,
+      undefined,
+      encodeInstruction({ opcode: 3, operand: 0, addressMode: AddressMode.Immediate }),
+    ]);
+  });
+
+  it("does not reserve words for comment-only lines", () => {
+    expect.assertions(1);
+    expect(assemble("add 5\n# comment\n   # another\nhalt", OPCODES)).toHaveLength(2);
+  });
+
+  it("labels point at the next emitted word across blank lines", () => {
+    expect.assertions(1);
+    const words = assemble("jmp start\n\nstart: add 1\nhalt", OPCODES);
+    expect(decodeInstruction(words[0] as number)).toEqual({
+      opcode: 12,
+      operand: 2,
+      addressMode: AddressMode.Immediate,
+    } satisfies Instruction);
   });
 
   it("strips full-line and trailing comments", () => {
