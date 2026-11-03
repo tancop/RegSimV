@@ -5,7 +5,7 @@
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
-  const DEMO = `# Demo: 5 + 7 stored at 1024\nLOAD [1024]\nADD 5\nADD 7\nSTORE [1024]\nHALT`;
+  const DEMO = `# Hi there!\nload [1024]\nadd 5\nadd 7\nstore [1024]\nhalt`;
 
   let running = $state(false);
   let sim = $state(new Simulator());
@@ -115,6 +115,31 @@
   function range(n: number): number[] {
     return [...Array(n).keys()];
   }
+
+  let registers = $derived.by(() => {
+    void tick;
+    return {
+      acc: sim.acc,
+      mar: sim.mar,
+      mbr: sim.mbr,
+      ins: sim.decodedInstruction?.opcode,
+    };
+  });
+
+  let memoryView = $derived.by(() => {
+    void tick;
+    return range(MEMORY_SIZE - sim.dataMemoryStart).map((idx) => {
+      if (running) {
+        return {
+          idx,
+          value: sim.memory[sim.dataMemoryStart + idx],
+          initialized: sim.isInitialized(idx),
+        };
+      }
+      const value = memory[idx];
+      return { idx, value, initialized: value !== undefined };
+    });
+  });
 </script>
 
 <main class="mx-auto grid main-grid p-5 size-full">
@@ -130,21 +155,17 @@
     {#if runtimeError}
       <p class="text-red-500 font-bold">{runtimeError}</p>
     {/if}
-    <p>acc = {sim.acc}</p>
-    <p>mar = {sim.mar}</p>
-    <p>mbr = {sim.mbr}</p>
-    <p>ins = {sim.decodedInstruction?.opcode}</p>
+    <p>acc = {registers.acc}</p>
+    <p>mar = {registers.mar}</p>
+    <p>mbr = {registers.mbr}</p>
+    <p>ins = {registers.ins}</p>
     <p>RegSimV</p>
   </div>
   <div class="w-full h-40 bg-amber-400">
-    <div class="size-full grid grid-cols-10 overflow-y-scroll">
-      {let entries = running
-        ? sim.memory.slice(sim.dataMemoryStart).entries()
-        : range(MEMORY_SIZE - sim.dataMemoryStart).map((k) => [k, memory[k]])}
-      {#each entries as [idx, val]}
-        {let isInitialized = running ? sim.isInitialized(idx) : val !== undefined}
+    <div class="size-full grid grid-cols-8 overflow-y-scroll">
+      {#each memoryView as { idx, value, initialized }}
         <input
-          value={isInitialized ? val.toString() : "-"}
+          value={initialized ? String(value) : "-"}
           onchange={(e) => {
             memory[idx] = parseInt(e.currentTarget.value);
           }}
