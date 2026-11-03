@@ -146,7 +146,7 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
       throw new AssembleError(
         AssembleErrorType.UnknownMnemonic,
         i + 1,
-        `Line ${i + 1}: unknown mnemonic "${mnemonicRaw}" (supported: ${opcodes.indexToName.join(", ")})`,
+        `Line ${i + 1}: unknown mnemonic "${mnemonicRaw}"`,
       );
     }
 
