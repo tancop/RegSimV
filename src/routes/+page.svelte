@@ -1,7 +1,7 @@
 <script lang="ts">
   import { assemble, AssembleError } from "#lib/assemble";
   import { BUILTIN_OPCODES, createOpcodeTable } from "#lib/opcodes.ts";
-  import { Simulator } from "#lib/simulator";
+  import { MEMORY_SIZE, Simulator } from "#lib/simulator";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
@@ -11,7 +11,7 @@
   let sim = $state(new Simulator());
   let source = $state(DEMO);
   let runtimeError = $state("");
-  let data = $state("");
+  let memory: number[] = [];
   let tick = $state(0);
 
   let [program, assembleError] = $derived.by(() => {
@@ -30,18 +30,16 @@
     if (!program) return;
     sim.reset();
     sim.loadProgram(OPCODES, program);
-    for (const line of data.split("\n")) {
-      const [addressStr, valueStr] = line.split(" ");
-      if (addressStr && valueStr) {
-        const address = parseInt(addressStr.trim(), 10);
-        const value = parseInt(valueStr.trim(), 10);
-        sim.store(address, value);
-      }
+
+    for (const [k, v] of memory.entries()) {
+      sim.memory[k] = v;
+      sim.markInitialized(k);
     }
   }
 
   function step() {
     if (!program) return;
+    console.log("step");
     runtimeError = "";
 
     if (!running) {
@@ -59,6 +57,8 @@
     } catch (e) {
       runtimeError = e instanceof Error ? e.message : String(e);
     }
+
+    refresh();
   }
 
   function uStep() {
@@ -101,6 +101,7 @@
     } catch (e) {
       runtimeError = e instanceof Error ? e.message : String(e);
     }
+
     refresh();
   }
 
@@ -109,6 +110,10 @@
     sim.reset();
     running = false;
     refresh();
+  }
+
+  function range(n: number): number[] {
+    return [...Array(n).keys()];
   }
 </script>
 
@@ -122,22 +127,28 @@
     {#if assembleError}
       <p class="text-red-500 font-bold">{assembleError}</p>
     {/if}
-    <p>
-      acc = {sim.acc}
-    </p>
-    <p>
-      mar = {sim.mar}
-    </p>
-    mbr = {sim.mbr}
-    <p>
-      ins = {sim.decodedInstruction?.opcode}
-    </p>
+    {#if runtimeError}
+      <p class="text-red-500 font-bold">{runtimeError}</p>
+    {/if}
+    <p>acc = {sim.acc}</p>
+    <p>mar = {sim.mar}</p>
+    <p>mbr = {sim.mbr}</p>
+    <p>ins = {sim.decodedInstruction?.opcode}</p>
     <p>RegSimV</p>
   </div>
   <div class="w-full h-40 bg-amber-400">
     <div class="size-full grid grid-cols-10 overflow-y-scroll">
-      {#each sim.memory.slice(sim.dataMemoryStart) as cell}
-        <p>{cell.toString()}</p>
+      {let entries = running
+        ? sim.memory.slice(sim.dataMemoryStart).entries()
+        : range(MEMORY_SIZE - sim.dataMemoryStart).map((k) => [k, memory[k]])}
+      {#each entries as [idx, val]}
+        {let isInitialized = running ? sim.isInitialized(idx) : val !== undefined}
+        <input
+          value={isInitialized ? val.toString() : "-"}
+          onchange={(e) => {
+            memory[idx] = parseInt(e.currentTarget.value);
+          }}
+        />
       {/each}
     </div>
   </div>
