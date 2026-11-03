@@ -112,50 +112,40 @@
   }
 </script>
 
-<main class="mx-auto flex max-w-2xl flex-col gap-4 p-5">
-  <h1 class="text-3xl font-bold">RegSim</h1>
-
-  <div class="flex">
-    <label class="flex flex-col gap-1">
-      <span class="text-sm font-medium">Program</span>
-      <textarea class="min-h-40 rounded border p-2 font-mono text-sm" bind:value={source}
-      ></textarea>
-    </label>
-    <label class="flex flex-col gap-1">
-      <span class="text-sm font-medium">Data</span>
-      <textarea class="min-h-40 rounded border p-2 font-mono text-sm" bind:value={data}></textarea>
-    </label>
+<main class="mx-auto grid main-grid p-5 size-full">
+  <textarea class="size-full resize-none font-mono" bind:value={source}></textarea>
+  <div class="w-full flex gap-2 items-end bg-green-400">
+    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={step}>Step</button>
+    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={reset}>Reset</button>
   </div>
-
-  <div class="flex flex-wrap gap-2">
-    <button class="rounded border px-3 py-1" onclick={step}>Step</button>
-    <button class="rounded border px-3 py-1" onclick={uStep}>Step Micro</button>
-    <button class="rounded border px-3 py-1" onclick={run}>Run</button>
-    <button class="rounded border px-3 py-1" onclick={reset}>Reset</button>
+  <div class="size-full">
+    {#if assembleError}
+      <p class="text-red-500 font-bold">{assembleError}</p>
+    {/if}
+    <p>
+      acc = {sim.acc}
+    </p>
+    <p>
+      mar = {sim.mar}
+    </p>
+    mbr = {sim.mbr}
+    <p>
+      ins = {sim.decodedInstruction?.opcode}
+    </p>
+    <p>RegSimV</p>
   </div>
-
-  {#if assembleError}
-    <p class="rounded border border-red-400 p-2 text-sm text-red-600">{assembleError}</p>
-  {/if}
-
-  {#if runtimeError}
-    <p class="rounded border border-red-400 p-2 text-sm text-red-600">{runtimeError}</p>
-  {/if}
-
-  {#key tick}
-    <dl class="grid grid-cols-2 gap-1 font-mono text-sm">
-      <dt class="opacity-60">ACC</dt>
-      <dd>{sim.acc}</dd>
-      <dt class="opacity-60">PC</dt>
-      <dd>{sim.pc}</dd>
-      <dt class="opacity-60">IR</dt>
-      <dd>{sim.ir}</dd>
-      <dt class="opacity-60">Halted</dt>
-      <dd>{sim.halted ? "yes" : "no"}</dd>
-      <dt class="opacity-60">MEM[1024]</dt>
-      <dd>{sim.memory[1024]}</dd>
-      <dt class="opacity-60">MEM[1025]</dt>
-      <dd>{sim.memory[1025]}</dd>
-    </dl>
-  {/key}
+  <div class="w-full h-40 bg-amber-400">
+    <div class="size-full grid grid-cols-10 overflow-y-scroll">
+      {#each sim.memory.slice(sim.dataMemoryStart) as cell}
+        <p>{cell.toString()}</p>
+      {/each}
+    </div>
+  </div>
 </main>
+
+<style>
+  .main-grid {
+    grid-template-columns: 1fr 4fr;
+    grid-template-rows: 2fr 1fr;
+  }
+</style>
