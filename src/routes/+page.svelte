@@ -118,11 +118,20 @@
 
   let registers = $derived.by(() => {
     void tick;
+    let opcode = sim.decodedInstruction?.opcode;
+    if (opcode !== undefined) {
+      return {
+        acc: sim.acc,
+        mar: sim.mar,
+        mbr: sim.mbr,
+        ins: OPCODES.indexToName[opcode],
+      };
+    }
     return {
       acc: sim.acc,
       mar: sim.mar,
       mbr: sim.mbr,
-      ins: sim.decodedInstruction?.opcode,
+      ins: "[none]",
     };
   });
 
