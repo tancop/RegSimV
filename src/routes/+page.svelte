@@ -168,7 +168,7 @@
     <p>uop = {registers.uop}</p>
     <p>RegSimV</p>
   </div>
-  <div class="w-full h-40 bg-amber-400">
+  <div class="w-full h-full min-h-0 bg-amber-400">
     <div class="size-full grid grid-cols-8 overflow-y-scroll">
       {#each memoryView as { idx, value, initialized }}
         <input
