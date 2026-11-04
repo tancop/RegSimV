@@ -117,20 +117,14 @@
 
   let registers = $derived.by(() => {
     void tick;
-    let opcode = sim.decodedInstruction?.opcode;
-    if (opcode !== undefined) {
-      return {
-        acc: sim.acc,
-        mar: sim.mar,
-        mbr: sim.mbr,
-        ins: OPCODES.indexToName[opcode],
-      };
-    }
+    const opcode = sim.decodedInstruction?.opcode;
     return {
+      pc: sim.pc,
       acc: sim.acc,
       mar: sim.mar,
       mbr: sim.mbr,
-      ins: "[none]",
+      ins: opcode !== undefined ? OPCODES.indexToName[opcode] : "[none]",
+      uop: sim.uopNames[sim.uopIndex] ?? "[none]",
     };
   });
 
@@ -158,17 +152,19 @@
     <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={run}>Run</button>
     <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={reset}>Reset</button>
   </div>
-  <div class="size-full">
+  <div class="size-full overflow-hidden">
     {#if assembleError}
       <p class="text-red-500 font-bold">{assembleError}</p>
     {/if}
     {#if runtimeError}
       <p class="text-red-500 font-bold">{runtimeError}</p>
     {/if}
+    <p>pc = {registers.pc}</p>
     <p>acc = {registers.acc}</p>
     <p>mar = {registers.mar}</p>
     <p>mbr = {registers.mbr}</p>
     <p>ins = {registers.ins}</p>
+    <p>uop = {registers.uop}</p>
     <p>RegSimV</p>
   </div>
   <div class="w-full h-40 bg-amber-400">

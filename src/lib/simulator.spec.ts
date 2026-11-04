@@ -19,6 +19,29 @@ describe("simulator", () => {
     expect(steps).toBe(2);
   });
 
+  it("tracks the current micro-op and steps it back with restore", () => {
+    expect.assertions(7);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD 5\nHALT", OPCODES));
+    expect(sim.uopIndex).toBe(-1);
+    expect(sim.uopNames[sim.uopIndex] ?? "[none]").toBe("[none]");
+    for (let i = 0; i < 7; i++) sim.uStep();
+    expect(sim.uopNames).toEqual([
+      "PC => MAR",
+      "READ MEM",
+      "MBR => IR",
+      "INCREMENT PC",
+      "DECODE",
+      "IR operand => MBR",
+      "mADD",
+    ]);
+    expect(sim.uopIndex).toBe(6);
+    expect(sim.uopNames[sim.uopIndex]).toBe("mADD");
+    expect(sim.acc).toBe(5);
+    sim.restore();
+    expect(sim.uopIndex).toBe(5);
+  });
+
   it("rejects out-of-range memory access", () => {
     expect.assertions(1);
     const sim = new Simulator();

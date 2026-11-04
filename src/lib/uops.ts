@@ -97,16 +97,21 @@ export const UOPS = {
     st.saveCount(0);
     st.decodedInstruction = decodeInstruction(st.ir);
     const operation = st.compiledOps[st.decodedInstruction.opcode];
+    const definition = st.opcodes?.uops[st.decodedInstruction.opcode];
     let variant: ((st: Simulator, ops: UOps) => IterableIterator<number>) | undefined;
+    let variantUops: UOp[] | undefined;
     switch (st.decodedInstruction.addressMode) {
       case AddressMode.Immediate:
         variant = operation.immediate;
+        variantUops = definition?.immediate;
         break;
       case AddressMode.Direct:
         variant = operation.direct;
+        variantUops = definition?.direct;
         break;
       case AddressMode.Indirect:
         variant = operation.indirect;
+        variantUops = definition?.indirect;
         break;
     }
     if (!variant) {
@@ -115,6 +120,7 @@ export const UOPS = {
       );
     }
     st.currentOp = variant(st, UOPS);
+    st.setVariantUops(variantUops ?? []);
   },
 
   mSub(st) {
@@ -321,7 +327,7 @@ export const BRANCHY_UOPS: UOp[] = ["testAcc", "testNotAcc", "testCf", "testNotC
 
 // Maps ID to human readable name
 export const NAME_TO_UOP = {
-  irToMbr: "IR operand => MBR",
+  irToMbr: "IR op. => MBR",
   mbrToIr: "MBR => IR",
   mbrToMar: "MBR => MAR",
   marToMbr: "MAR => MBR",

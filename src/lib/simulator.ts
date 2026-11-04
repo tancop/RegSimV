@@ -1,7 +1,7 @@
 import { AddressMode, decodeInstruction, type Instruction } from "./encoding";
 import type { OpcodeTable } from "./opcodes";
 import { compile, compileVariant, type CompiledOperation } from "./jit";
-import { UOPS, type UOp } from "./uops";
+import { NAME_TO_UOP, UOPS, type UOp } from "./uops";
 
 export const MEMORY_SIZE = 2048;
 
@@ -102,6 +102,26 @@ export class Simulator {
   compiledOps: CompiledOperation[] = [];
   currentOp?: IterableIterator<number>;
 
+  // Micro-ops of the instruction currently executing: the fetch/decode prefix,
+  // extended with the operation's address-mode variant once DECODE has run.
+  // Empty while no instruction is in progress.
+  currentUops: UOp[] = [];
+
+  // Index into `currentUops` of the most recently executed micro-op. -1 when
+  // none has run yet, so `uopNames[uopIndex]` is always the current one.
+  uopIndex = -1;
+
+  // Human-readable names of `currentUops`, indexed by `uopIndex`.
+  get uopNames(): string[] {
+    return this.currentUops.map((uop) => NAME_TO_UOP[uop]);
+  }
+
+  // Replaces the operation portion of the running microprogram after DECODE
+  // picks an address-mode variant, keeping the fetch/decode prefix in place.
+  setVariantUops(uops: UOp[]): void {
+    this.currentUops = [...DECODE_SEQUENCE, ...uops];
+  }
+
   // Statistics
   uopsExecuted = 0;
 
@@ -192,6 +212,9 @@ export class Simulator {
           break;
       }
     }
+
+    // Move the micro-op cursor back so the display matches the restored state.
+    if (this.uopIndex >= 0) this.uopIndex--;
   }
 
   // Prints and returns the changes recorded by the last `n` executed uops,
@@ -267,6 +290,8 @@ export class Simulator {
     this.skipNext = false;
     this.decodedInstruction = undefined;
     this.currentOp = undefined;
+    this.currentUops = [];
+    this.uopIndex = -1;
     this.memory.fill(0);
     this.initBoundaries.length = 0;
     this.uopsExecuted = 0;
@@ -375,7 +400,10 @@ export class Simulator {
     if (this.halted) return true;
     if (!this.currentOp) {
       this.currentOp = this.decodeSequence(this, UOPS);
+      this.currentUops = DECODE_SEQUENCE;
+      this.uopIndex = -1;
     }
+    this.uopIndex++;
     const result = this.currentOp.next();
     if (result.done) {
       this.currentOp = undefined;
