@@ -32,14 +32,13 @@
     sim.loadProgram(OPCODES, program);
 
     for (const [k, v] of memory.entries()) {
-      sim.memory[k] = v;
-      sim.markInitialized(k);
+      sim.memory[sim.dataMemoryStart + k] = v;
+      sim.markInitialized(sim.dataMemoryStart + k);
     }
   }
 
   function step() {
     if (!program) return;
-    console.log("step");
     runtimeError = "";
 
     if (!running) {
@@ -154,7 +153,9 @@
 <main class="mx-auto grid main-grid p-5 size-full">
   <textarea class="size-full resize-none font-mono" bind:value={source}></textarea>
   <div class="w-full flex gap-2 items-end bg-green-400">
+    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={uStep}>Micro</button>
     <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={step}>Step</button>
+    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={run}>Run</button>
     <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={reset}>Reset</button>
   </div>
   <div class="size-full">

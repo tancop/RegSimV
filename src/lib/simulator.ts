@@ -266,16 +266,13 @@ export class Simulator {
     this.halted = false;
     this.skipNext = false;
     this.decodedInstruction = undefined;
+    this.currentOp = undefined;
     this.memory.fill(0);
     this.initBoundaries.length = 0;
     this.uopsExecuted = 0;
   }
 
-  loadProgram(
-    opcodes: OpcodeTable,
-    program: ArrayLike<number | undefined>,
-    start = 0,
-  ): void {
+  loadProgram(opcodes: OpcodeTable, program: ArrayLike<number | undefined>, start = 0): void {
     if (start < 0 || start + program.length > MEMORY_SIZE) {
       throw new RangeError("Program does not fit in memory");
     }
@@ -371,21 +368,27 @@ export class Simulator {
     this.memory[address] = value >>> 0;
   }
 
-  // Returns true if instruction is complete, false if more steps are needed
+  // Advances one micro-op. Starts a new instruction's fetch/decode sequence
+  // when none is in progress. Returns true once an instruction has fully
+  // executed (or the simulator is halted), so the next call starts a new one.
   uStep(): boolean {
     if (this.halted) return true;
     if (!this.currentOp) {
-      throw new Error("No current operation");
+      this.currentOp = this.decodeSequence(this, UOPS);
     }
     const result = this.currentOp.next();
-    return result.done ?? false;
+    if (result.done) {
+      this.currentOp = undefined;
+      return true;
+    }
+    return false;
   }
 
   step(): void {
     if (this.halted) return;
-    this.currentOp = this.decodeSequence(this, UOPS);
-    while (!this.uStep()) {} // decode instruction
-    while (!this.uStep()) {} // execute instruction
+    // `uStep` returns true at an instruction boundary, so this runs exactly
+    // one instruction — resuming one that micro-stepping left mid-way.
+    while (!this.uStep()) {}
   }
 
   run(maxSteps = 10_000): number {
