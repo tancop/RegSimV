@@ -11,7 +11,7 @@
   let sim = $state(new Simulator());
   let source = $state(DEMO);
   let runtimeError = $state("");
-  let memory: number[] = [];
+  let memory = [0];
   let tick = $state(0);
 
   let [program, assembleError] = $derived.by(() => {
@@ -142,7 +142,7 @@
         return {
           idx,
           value: sim.memory[sim.dataMemoryStart + idx],
-          initialized: sim.isInitialized(idx),
+          initialized: sim.isInitialized(sim.dataMemoryStart + idx),
         };
       }
       const value = memory[idx];
