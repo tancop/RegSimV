@@ -1,7 +1,9 @@
 <script lang="ts">
   import { assemble, AssembleError } from "#lib/assemble";
+  import Button from "#lib/Button.svelte";
   import { BUILTIN_OPCODES, createOpcodeTable } from "#lib/opcodes.ts";
   import { MEMORY_SIZE, Simulator } from "#lib/simulator";
+  import ErrorText from "../ErrorText.svelte";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
@@ -147,17 +149,16 @@
 <main class="mx-auto grid main-grid p-5 size-full">
   <textarea class="size-full resize-none font-mono" bind:value={source}></textarea>
   <div class="w-full flex gap-2 items-end bg-green-400">
-    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={uStep}>Micro</button>
-    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={step}>Step</button>
-    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={run}>Run</button>
-    <button class="px-4 py-1 size-fit bg-slate-200 rounded-md" onclick={reset}>Reset</button>
+    <Button onclick={uStep} text="Micro" />
+    <Button onclick={step} text="Step" />
+    <Button onclick={run} text="Run" />
+    <Button onclick={reset} text="Reset" />
   </div>
   <div class="size-full overflow-hidden">
     {#if assembleError}
-      <p class="text-red-500 font-bold">{assembleError}</p>
-    {/if}
-    {#if runtimeError}
-      <p class="text-red-500 font-bold">{runtimeError}</p>
+      <ErrorText error={assembleError} />
+    {:else if runtimeError}
+      <ErrorText error={runtimeError} />
     {/if}
     <p>pc = {registers.pc}</p>
     <p>acc = {registers.acc}</p>
