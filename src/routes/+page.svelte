@@ -1,6 +1,7 @@
 <script lang="ts">
   import { assemble, AssembleError } from "#lib/assemble";
   import Button from "#lib/Button.svelte";
+  import CpuDiagram from "#lib/diagram/CpuDiagram.svelte";
   import { BUILTIN_OPCODES, createOpcodeTable } from "#lib/opcodes.ts";
   import { MEMORY_SIZE, Simulator } from "#lib/simulator";
   import ErrorText from "../ErrorText.svelte";
@@ -148,11 +149,14 @@
 
 <main class="mx-auto grid main-grid p-5 size-full">
   <textarea class="size-full resize-none font-mono" bind:value={source}></textarea>
-  <div class="w-full flex gap-2 items-end bg-green-400">
-    <Button onclick={uStep} text="Micro" />
-    <Button onclick={step} text="Step" />
-    <Button onclick={run} text="Run" />
-    <Button onclick={reset} text="Reset" />
+  <div class="w-full flex flex-col">
+    <CpuDiagram />
+    <div class="flex gap-3 items-start">
+      <Button onclick={uStep} text="Micro" />
+      <Button onclick={step} text="Step" />
+      <Button onclick={run} text="Run" />
+      <Button onclick={reset} text="Reset" />
+    </div>
   </div>
   <div class="size-full overflow-hidden">
     {#if assembleError}
