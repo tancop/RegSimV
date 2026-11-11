@@ -8,7 +8,7 @@
 
   const binValue = $derived.by(() => {
     let v = value.toString(2).padStart(32, "0");
-    return [v.slice(0, 7), v.slice(8, 15), v.slice(16, 23), v.slice(24, 31)].join(" ");
+    return [v.slice(1, 8), v.slice(9, 16), v.slice(17, 24), v.slice(25, 32)].join(" ");
   });
 </script>
 
