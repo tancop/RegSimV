@@ -393,6 +393,11 @@ export class Simulator {
     this.memory[address] = value >>> 0;
   }
 
+  // Returns the value of SR as a number. This is the format used by SR=>ACC.
+  srValue(): number {
+    return (+this.cf << 3) | (+this.of << 2) | (+this.sf << 1) | +this.zf;
+  }
+
   // Advances one micro-op. Starts a new instruction's fetch/decode sequence
   // when none is in progress. Returns true once an instruction has fully
   // executed (or the simulator is halted), so the next call starts a new one.

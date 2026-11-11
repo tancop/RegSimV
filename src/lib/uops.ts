@@ -6,12 +6,6 @@ export type UOps = Record<string, (st: Simulator) => void>;
 export const I32_MAX = 2147483647;
 export const I32_MIN = -2147483648;
 
-// Packs the flags into a single number, in the same format srToAcc uses.
-// Changed flags are saved to history as one Field.SR entry in this format.
-function srValue(st: Simulator): number {
-  return (+st.cf << 3) | (+st.of << 2) | (+st.sf << 1) | +st.zf;
-}
-
 export const UOPS = {
   accToMbr(st) {
     st.save(Field.MBR, st.mbr);
@@ -125,7 +119,7 @@ export const UOPS = {
 
   mSub(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     const a = st.acc | 0;
     const b = st.mbr | 0;
@@ -136,7 +130,7 @@ export const UOPS = {
   },
   mAdd(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     const a = st.acc | 0;
     const b = st.mbr | 0;
@@ -147,7 +141,7 @@ export const UOPS = {
   },
   mMul(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     const a = st.acc | 0;
     const b = st.mbr | 0;
@@ -158,7 +152,7 @@ export const UOPS = {
   },
   mDiv(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     const divisor = st.mbr | 0;
     if (divisor === 0) {
@@ -196,7 +190,7 @@ export const UOPS = {
   },
 
   cmp(st) {
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.cf = st.acc == st.mbr;
   },
@@ -239,21 +233,21 @@ export const UOPS = {
 
   lshiftAcc(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     st.of = (st.acc & (1 << 31)) != 0;
     st.acc = (st.acc << 1) >>> 0;
   },
   rshiftAcc(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     st.of = (st.acc & 1) != 0;
     st.acc = (st.acc >>> 1) >>> 0;
   },
   lshiftAccOf(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     let result = (st.acc << 1) >>> 0;
     if (st.of) {
@@ -264,7 +258,7 @@ export const UOPS = {
   },
   rshiftAccOf(st) {
     st.save(Field.ACC, st.acc);
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(2);
     let result = (st.acc >> 1) >>> 0;
     if (st.of) {
@@ -275,7 +269,7 @@ export const UOPS = {
   },
 
   clearSr(st) {
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.cf = false;
     st.zf = false;
@@ -284,22 +278,22 @@ export const UOPS = {
   },
 
   setCf(st) {
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.cf = true;
   },
   setZf(st) {
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.zf = true;
   },
   setSf(st) {
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.sf = true;
   },
   setOf(st) {
-    st.save(Field.SR, srValue(st));
+    st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.of = true;
   },
@@ -307,7 +301,7 @@ export const UOPS = {
   srToAcc(st) {
     st.save(Field.ACC, st.acc);
     st.saveCount(1);
-    st.acc = srValue(st);
+    st.acc = st.srValue();
   },
 
   nop(st) {

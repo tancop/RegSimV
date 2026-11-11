@@ -1,7 +1,7 @@
 <script lang="ts">
   import { assemble, AssembleError } from "#lib/assemble";
   import Button from "#lib/Button.svelte";
-  import CpuDiagram from "#lib/diagram/CpuDiagram.svelte";
+  import CpuDiagram, { type Registers } from "#lib/diagram/CpuDiagram.svelte";
   import { BUILTIN_OPCODES, createOpcodeTable } from "#lib/opcodes.ts";
   import { MEMORY_SIZE, Simulator } from "#lib/simulator";
   import ErrorText from "../ErrorText.svelte";
@@ -118,7 +118,7 @@
     return [...Array(n).keys()];
   }
 
-  let registers = $derived.by(() => {
+  let registers = $derived.by<Registers>(() => {
     void tick;
     const opcode = sim.decodedInstruction?.opcode;
     return {
@@ -126,6 +126,8 @@
       acc: sim.acc,
       mar: sim.mar,
       mbr: sim.mbr,
+      ir: sim.ir,
+      sr: sim.srValue(),
       ins: opcode !== undefined ? OPCODES.indexToName[opcode] : "[none]",
       uop: sim.uopNames[sim.uopIndex] ?? "[none]",
     };
@@ -150,7 +152,7 @@
 <main class="mx-auto grid main-grid p-5 size-full">
   <textarea class="size-full resize-none font-mono" bind:value={source}></textarea>
   <div class="w-full flex flex-col">
-    <CpuDiagram />
+    <CpuDiagram {registers} />
     <div class="flex gap-3 items-start">
       <Button onclick={uStep} text="Micro" />
       <Button onclick={step} text="Step" />
