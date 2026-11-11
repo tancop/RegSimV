@@ -20,7 +20,7 @@
   const { registers }: Props = $props();
 </script>
 
-<div class="flex size-full justify-between bg-white">
+<div class="flex size-full justify-around bg-white">
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="MBR" value={registers.mbr} />
     <RegisterCard name="MAR" value={registers.mar} />
@@ -32,5 +32,6 @@
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="IR" value={registers.ir} />
     <RegisterCard name="FLAGS" value={registers.sr} />
+    <RegisterCard name="PC" value={registers.pc} />
   </div>
 </div>
