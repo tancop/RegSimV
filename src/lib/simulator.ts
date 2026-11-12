@@ -398,22 +398,36 @@ export class Simulator {
     return (+this.cf << 3) | (+this.of << 2) | (+this.sf << 1) | +this.zf;
   }
 
+  // Installs a fresh fetch/decode iterator and points the uop cursor just
+  // before its first micro-op.
+  private startDecode(): IterableIterator<number> {
+    const op = this.decodeSequence(this, UOPS);
+    this.currentOp = op;
+    this.currentUops = DECODE_SEQUENCE;
+    this.uopIndex = -1;
+    return op;
+  }
+
   // Advances one micro-op. Starts a new instruction's fetch/decode sequence
-  // when none is in progress. Returns true once an instruction has fully
-  // executed (or the simulator is halted), so the next call starts a new one.
+  // when none is in progress. When the previous instruction finishes, the
+  // next instruction's fetch begins in the same call (its first micro-op is
+  // executed immediately) so there is no idle step at the boundary, and the
+  // uop index restarts at 0 for the new instruction. Returns true once an
+  // instruction has fully executed (or the simulator is halted).
   uStep(): boolean {
     if (this.halted) return true;
-    if (!this.currentOp) {
-      this.currentOp = this.decodeSequence(this, UOPS);
-      this.currentUops = DECODE_SEQUENCE;
-      this.uopIndex = -1;
+    let op = this.currentOp;
+    if (!op) {
+      op = this.startDecode();
     }
-    this.uopIndex++;
-    const result = this.currentOp.next();
+    const result = op.next();
     if (result.done) {
-      this.currentOp = undefined;
+      // The instruction just finished; begin the next one right away.
+      this.startDecode().next();
+      this.uopIndex = 0;
       return true;
     }
+    this.uopIndex++;
     return false;
   }
 
