@@ -4,6 +4,7 @@
   import CpuDiagram, { type Registers } from "#lib/diagram/CpuDiagram.svelte";
   import { BUILTIN_OPCODES, createOpcodeTable } from "#lib/opcodes.ts";
   import { MEMORY_SIZE, Simulator } from "#lib/simulator";
+  import { SvelteMap } from "svelte/reactivity";
   import ErrorText from "../ErrorText.svelte";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
@@ -14,7 +15,8 @@
   let sim = $state(new Simulator());
   let source = $state(DEMO);
   let runtimeError = $state("");
-  let memory = [0];
+  let memory = $state(new SvelteMap<number, number>());
+  let dataMemoryStart = $state(1024);
   let tick = $state(0);
 
   let [program, assembleError] = $derived.by(() => {
@@ -25,6 +27,19 @@
     }
   });
 
+  $effect(() => {
+    if (!program) return;
+
+    localStorage.setItem(
+      "currentProgram",
+      JSON.stringify({
+        source,
+        memory: Array.from(memory.entries()),
+        dataMemoryStart,
+      }),
+    );
+  });
+
   function refresh() {
     tick++;
   }
@@ -32,11 +47,12 @@
   function load() {
     if (!program) return;
     sim.reset();
+    sim.dataMemoryStart = dataMemoryStart;
     sim.loadProgram(OPCODES, program);
 
     for (const [k, v] of memory.entries()) {
-      sim.memory[sim.dataMemoryStart + k] = v;
-      sim.markInitialized(sim.dataMemoryStart + k);
+      sim.memory[dataMemoryStart + k] = v;
+      sim.markInitialized(dataMemoryStart + k);
     }
   }
 
@@ -135,25 +151,23 @@
 
   let memoryView = $derived.by(() => {
     void tick;
-    return range(MEMORY_SIZE - sim.dataMemoryStart).map((idx) => {
+    return range(MEMORY_SIZE - dataMemoryStart).map((idx) => {
       if (running) {
         return {
           idx,
-          value: sim.memory[sim.dataMemoryStart + idx],
-          initialized: sim.isInitialized(sim.dataMemoryStart + idx),
+          value: sim.memory[dataMemoryStart + idx],
+          initialized: sim.isInitialized(dataMemoryStart + idx),
         };
       }
-      const value = memory[idx];
+      const value = memory.get(idx);
       return { idx, value, initialized: value !== undefined };
     });
   });
 </script>
 
 <main class="mx-auto grid main-grid p-5 size-full">
-  <textarea
-    class="size-full resize-none font-mono"
-    spellcheck="false"
-    bind:value={source}></textarea>
+  <textarea class="size-full resize-none font-mono" spellcheck="false" bind:value={source}
+  ></textarea>
   <div class="w-full flex flex-col">
     <CpuDiagram {registers} />
     <div class="flex gap-3 items-start">
@@ -179,7 +193,7 @@
         <input
           value={initialized ? String(value) : "-"}
           onchange={(e) => {
-            memory[idx] = parseInt(e.currentTarget.value);
+            memory.set(idx, parseInt(e.currentTarget.value));
           }}
         />
       {/each}
