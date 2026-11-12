@@ -24,14 +24,14 @@
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="MBR" value={registers.mbr} />
     <RegisterCard name="MAR" value={registers.mar} />
-    <RegisterCard name="ACC" value={registers.acc} />
+    <RegisterCard name="PC" value={registers.pc} />
   </div>
 
   <Alu className="w-40" />
 
   <div class="flex flex-col h-full justify-between py-3">
-    <RegisterCard name="IR" value={registers.ir} />
+    <RegisterCard name="ACC" value={registers.acc} />
     <RegisterCard name="FLAGS" value={registers.sr} />
-    <RegisterCard name="PC" value={registers.pc} />
+    <RegisterCard name="IR" value={registers.ir} />
   </div>
 </div>
