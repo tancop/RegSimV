@@ -220,7 +220,7 @@
     <div class="size-full grid grid-cols-8">
       {#each memoryView as { idx, value, initialized }}
         <input
-          class="h-6"
+          class="h-6 focus:outline-none"
           placeholder="-"
           value={initialized ? String(value) : undefined}
           onchange={(e) => {
