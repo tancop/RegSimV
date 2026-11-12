@@ -99,7 +99,7 @@
     }
 
     try {
-      sim.run();
+      sim.run(1_000_000);
     } catch (e) {
       runtimeError = e instanceof Error ? e.message : String(e);
     }
