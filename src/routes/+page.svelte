@@ -150,7 +150,10 @@
 </script>
 
 <main class="mx-auto grid main-grid p-5 size-full">
-  <textarea class="size-full resize-none font-mono" bind:value={source}></textarea>
+  <textarea
+    class="size-full resize-none font-mono"
+    spellcheck="false"
+    bind:value={source}></textarea>
   <div class="w-full flex flex-col">
     <CpuDiagram {registers} />
     <div class="flex gap-3 items-start">
@@ -166,10 +169,6 @@
     {:else if runtimeError}
       <ErrorText error={runtimeError} />
     {/if}
-    <p>pc = {registers.pc}</p>
-    <p>acc = {registers.acc}</p>
-    <p>mar = {registers.mar}</p>
-    <p>mbr = {registers.mbr}</p>
     <p>ins = {registers.ins}</p>
     <p>uop = {registers.uop}</p>
     <p>RegSimV</p>
