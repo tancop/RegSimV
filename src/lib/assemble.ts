@@ -188,7 +188,7 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
       }
     }
 
-    assertModeSupported(op, addressMode, mnemonic, i + 1);
+    assertModeSupported(op, addressMode, mnemonic, i);
 
     let operand = 0;
 
