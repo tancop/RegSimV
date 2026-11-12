@@ -263,7 +263,7 @@ describe("simulator", () => {
 
     expect(sim.acc).toBe(-400821818);
     expect(sim.of).toBe(true);
-    expect(sim.sf).toBe(true);
+    expect(sim.nf).toBe(true);
   });
 
   // Shift and rotate
@@ -450,23 +450,23 @@ describe("simulator time travel", () => {
   it("restores flags saved as a packed SR value", () => {
     expect.assertions(5);
     const sim = new Simulator();
-    sim.cf = true;
-    sim.sf = true;
+    sim.ef = true;
+    sim.nf = true;
     UOPS.setOf(sim);
     expect(sim.of).toBe(true);
     sim.restore();
     expect(sim.of).toBe(false);
-    expect(sim.cf).toBe(true);
-    expect(sim.sf).toBe(true);
+    expect(sim.ef).toBe(true);
+    expect(sim.nf).toBe(true);
     expect(sim.zf).toBe(false);
   });
 
   it("restores acc through the srToAcc flag format", () => {
     expect.assertions(2);
     const sim = new Simulator();
-    sim.cf = true;
+    sim.ef = true;
     sim.of = true;
-    sim.sf = true;
+    sim.nf = true;
     sim.zf = true;
     sim.acc = 123;
     UOPS.srToAcc(sim);
@@ -490,9 +490,9 @@ describe("simulator time travel", () => {
     expect(sim.mar).toBe(0);
     expect(sim.mbr).toBe(0);
     expect(sim.ir).toBe(0);
-    expect(sim.cf).toBe(false);
+    expect(sim.ef).toBe(false);
     expect(sim.zf).toBe(false);
-    expect(sim.sf).toBe(false);
+    expect(sim.nf).toBe(false);
     expect(sim.of).toBe(false);
   });
 
@@ -924,7 +924,7 @@ describe("simulator golden tests", () => {
     checkMemory(sim.memory, ["@skipto 300", 5, 1, 2, 306, "@skipto 305", 1, 0]);
 
     expect(sim.halted).toBe(true);
-    expect(sim.cf).toBe(true);
+    expect(sim.ef).toBe(true);
     expect(sim.pc).toBe(27);
     expect(sim.acc).toBe(2);
     expect(sim.mar).toBe(26);
@@ -1056,9 +1056,9 @@ describe("simulator golden tests", () => {
             "writeMem",
             "clearSr",
             "srToAcc",
-            "setSf",
+            "setNf",
             "setOf",
-            "setCf",
+            "setEf",
             "srToAcc",
             "lshiftAcc",
             "accToMbr",
@@ -1081,9 +1081,9 @@ describe("simulator golden tests", () => {
             "writeMem",
             "clearSr",
             "srToAcc",
-            "setCf",
+            "setEf",
             "setOf",
-            "setSf",
+            "setNf",
             "srToAcc",
             "lshiftAcc",
             "accToMbr",

@@ -171,9 +171,9 @@
       sr: sim.srValue(),
       ins: opcode !== undefined ? OPCODES.indexToName[opcode] : "[none]",
       uop: sim.uopNames[sim.uopIndex] ?? "[none]",
-      cf: sim.cf,
+      ef: sim.ef,
       zf: sim.zf,
-      sf: sim.sf,
+      nf: sim.nf,
       of: sim.of,
     };
   });

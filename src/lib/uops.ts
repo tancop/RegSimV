@@ -125,7 +125,7 @@ export const UOPS = {
     const b = st.mbr | 0;
     const result = (a - b) | 0;
     st.of = result !== a - b;
-    st.sf = result < 0;
+    st.nf = result < 0;
     st.acc = result;
   },
   mAdd(st) {
@@ -136,7 +136,7 @@ export const UOPS = {
     const b = st.mbr | 0;
     const result = (a + b) | 0;
     st.of = result !== a + b;
-    st.sf = result < 0;
+    st.nf = result < 0;
     st.acc = result;
   },
   mMul(st) {
@@ -147,7 +147,7 @@ export const UOPS = {
     const b = st.mbr | 0;
     const result = Math.imul(a, b);
     st.of = result !== a * b;
-    st.sf = result < 0;
+    st.nf = result < 0;
     st.acc = result;
   },
   mDiv(st) {
@@ -164,7 +164,7 @@ export const UOPS = {
     const overflows = dividend === I32_MIN && divisor === -1;
     const result = overflows ? I32_MIN : (dividend / divisor) | 0;
     st.of = overflows;
-    st.sf = result < 0;
+    st.nf = result < 0;
     st.acc = result;
   },
 
@@ -192,7 +192,7 @@ export const UOPS = {
   cmp(st) {
     st.save(Field.SR, st.srValue());
     st.saveCount(1);
-    st.cf = st.acc == st.mbr;
+    st.ef = st.acc == st.mbr;
   },
 
   testAcc(st) {
@@ -209,13 +209,13 @@ export const UOPS = {
   },
   testCf(st) {
     st.saveCount(0);
-    if (st.cf) {
+    if (st.ef) {
       st.skipNext = true;
     }
   },
   testNotCf(st) {
     st.saveCount(0);
-    if (!st.cf) {
+    if (!st.ef) {
       st.skipNext = true;
     }
   },
@@ -271,26 +271,26 @@ export const UOPS = {
   clearSr(st) {
     st.save(Field.SR, st.srValue());
     st.saveCount(1);
-    st.cf = false;
+    st.ef = false;
     st.zf = false;
-    st.sf = false;
+    st.nf = false;
     st.of = false;
   },
 
-  setCf(st) {
+  setEf(st) {
     st.save(Field.SR, st.srValue());
     st.saveCount(1);
-    st.cf = true;
+    st.ef = true;
   },
   setZf(st) {
     st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.zf = true;
   },
-  setSf(st) {
+  setNf(st) {
     st.save(Field.SR, st.srValue());
     st.saveCount(1);
-    st.sf = true;
+    st.nf = true;
   },
   setOf(st) {
     st.save(Field.SR, st.srValue());
@@ -350,16 +350,16 @@ export const NAME_TO_UOP = {
   lshiftAcc: "LSHIFT ACC",
   rshiftAcc: "RSHIFT ACC",
   nop: "NOP",
-  testCf: "TEST CF",
-  testNotCf: "TESTN CF",
-  lshiftAccOf: "LSHIFT ACC VF",
-  rshiftAccOf: "RSHIFT ACC VF",
+  testCf: "TEST EF",
+  testNotCf: "TESTN EF",
+  lshiftAccOf: "LSHIFT ACC OF",
+  rshiftAccOf: "RSHIFT ACC OF",
   clearSr: "CLEAR SR",
   incrementPc: "INCREMENT PC",
   decode: "DECODE",
-  setCf: "SET CF",
+  setEf: "SET EF",
   setZf: "SET ZF",
-  setSf: "SET SF",
+  setNf: "SET NF",
   setOf: "SET OF",
   srToAcc: "SR => ACC",
 } satisfies Record<UOp, string>;

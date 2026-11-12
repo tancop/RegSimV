@@ -13,9 +13,9 @@
     ins: string;
     uop: string;
 
-    cf: boolean;
+    ef: boolean;
     zf: boolean;
-    sf: boolean;
+    nf: boolean;
     of: boolean;
   }
 
@@ -37,7 +37,7 @@
 
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="ACC" value={registers.acc} />
-    <FlagsCard cf={registers.cf} zf={registers.zf} sf={registers.sf} of={registers.of} />
+    <FlagsCard ef={registers.ef} zf={registers.zf} nf={registers.nf} of={registers.of} />
     <RegisterCard name="IR" value={registers.ir} />
   </div>
 </div>

@@ -75,9 +75,9 @@ export class Simulator {
   acc = 0;
 
   // Flags
-  cf = false; // Carry Flag
+  ef = false; // Carry Flag
   zf = false; // Zero Flag
-  sf = false; // Sign Flag
+  nf = false; // Sign Flag
   of = false; // Overflow Flag
 
   // Memory
@@ -202,9 +202,9 @@ export class Simulator {
           this.ir = value;
           break;
         case Field.SR:
-          this.cf = (value & 0b1000) !== 0;
+          this.ef = (value & 0b1000) !== 0;
           this.of = (value & 0b0100) !== 0;
-          this.sf = (value & 0b0010) !== 0;
+          this.nf = (value & 0b0010) !== 0;
           this.zf = (value & 0b0001) !== 0;
           break;
         case Field.ACC:
@@ -282,9 +282,9 @@ export class Simulator {
     this.pc = 0;
     this.ir = 0;
     this.acc = 0;
-    this.cf = false;
+    this.ef = false;
     this.zf = false;
-    this.sf = false;
+    this.nf = false;
     this.of = false;
     this.halted = false;
     this.skipNext = false;
@@ -395,7 +395,7 @@ export class Simulator {
 
   // Returns the value of SR as a number. This is the format used by SR=>ACC.
   srValue(): number {
-    return (+this.cf << 3) | (+this.of << 2) | (+this.sf << 1) | +this.zf;
+    return (+this.ef << 3) | (+this.of << 2) | (+this.nf << 1) | +this.zf;
   }
 
   // Installs a fresh fetch/decode iterator and points the uop cursor just
