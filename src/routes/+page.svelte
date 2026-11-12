@@ -8,10 +8,11 @@
   import ErrorText from "../ErrorText.svelte";
   import { onMount } from "svelte";
   import { range } from "#lib/range.ts";
+  import CodeInput from "#lib/CodeInput.svelte";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
-  const DEMO = `# Hi there!\nload [1024]\nadd 5\nadd 7\nstore [1024]\nhalt`;
+  const DEMO = ["# Hi there!", "load [1024]", "add 5", "add 7", "store [1024]", "halt"].join("\n");
 
   const CURRENT_PROGRAM_KEY = "currentProgram";
 
@@ -51,7 +52,7 @@
     try {
       return [assemble(source, OPCODES), undefined];
     } catch (e) {
-      return [undefined, (e as AssembleError).message];
+      return [undefined, e as AssembleError];
     }
   });
 
@@ -190,8 +191,7 @@
 </script>
 
 <main class="mx-auto grid main-grid p-5 size-full">
-  <textarea class="size-full resize-none font-mono" spellcheck="false" bind:value={source}
-  ></textarea>
+  <CodeInput bind:source errorLine={assembleError?.line} />
   <div class="w-full flex flex-col">
     <CpuDiagram {registers} />
     <div class="flex gap-3 items-start">
@@ -203,7 +203,7 @@
   </div>
   <div class="size-full overflow-hidden">
     {#if assembleError}
-      <ErrorText error={assembleError} />
+      <ErrorText error={assembleError.message} />
     {:else if runtimeError}
       <ErrorText error={runtimeError} />
     {/if}
