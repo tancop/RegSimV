@@ -7,6 +7,7 @@
   import { SvelteMap } from "svelte/reactivity";
   import ErrorText from "../ErrorText.svelte";
   import { onMount } from "svelte";
+  import { range } from "#lib/range.ts";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
@@ -155,10 +156,6 @@
     sim.reset();
     running = false;
     refresh();
-  }
-
-  function range(n: number): number[] {
-    return [...Array(n).keys()];
   }
 
   let registers = $derived.by<Registers>(() => {
