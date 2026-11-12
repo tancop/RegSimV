@@ -6,10 +6,37 @@
   import { MEMORY_SIZE, Simulator } from "#lib/simulator";
   import { SvelteMap } from "svelte/reactivity";
   import ErrorText from "../ErrorText.svelte";
+  import { onMount } from "svelte";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
   const DEMO = `# Hi there!\nload [1024]\nadd 5\nadd 7\nstore [1024]\nhalt`;
+
+  const CURRENT_PROGRAM_KEY = "currentProgram";
+
+  interface SavedProgram {
+    source: string;
+    memory: [number, number][];
+    dataMemoryStart: number;
+  }
+
+  function validateSavedProgram(obj: unknown): obj is SavedProgram {
+    if (typeof obj !== "object" || obj === null) return false;
+    const o = obj as Record<string, unknown>;
+    if (typeof o.source !== "string") return false;
+    if (!Array.isArray(o.memory)) return false;
+    if (typeof o.dataMemoryStart !== "number") return false;
+    return true;
+  }
+
+  onMount(() => {
+    const saved = JSON.parse(localStorage.getItem(CURRENT_PROGRAM_KEY) ?? "{}");
+    if (validateSavedProgram(saved)) {
+      source = saved.source;
+      memory = new SvelteMap<number, number>(saved.memory);
+      dataMemoryStart = saved.dataMemoryStart;
+    }
+  });
 
   let running = $state(false);
   let sim = $state(new Simulator());
@@ -31,12 +58,12 @@
     if (!program) return;
 
     localStorage.setItem(
-      "currentProgram",
+      CURRENT_PROGRAM_KEY,
       JSON.stringify({
         source,
         memory: Array.from(memory.entries()),
         dataMemoryStart,
-      }),
+      } satisfies SavedProgram),
     );
   });
 
