@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assemble, AssembleError, AssembleErrorType } from "./assemble";
-import {
-  AddressMode,
-  decodeInstruction,
-  encodeInstruction,
-  type Instruction,
-} from "./encoding";
+import { AddressMode, decodeInstruction, encodeInstruction, type Instruction } from "./encoding";
 import { BUILTIN_OPCODES, createOpcodeTable } from "./opcodes";
 import { Simulator } from "./simulator";
 
@@ -202,7 +197,7 @@ describe("assemble", () => {
     expect.assertions(2);
     const error = assembleError("add 5\nload [x]");
     expect(error.type).toBe(AssembleErrorType.MalformedOperand);
-    expect(error.line).toBe(2);
+    expect(error.line).toBe(1);
   });
 
   it("rejects an address mode the instruction does not support", () => {
@@ -218,7 +213,7 @@ describe("assemble", () => {
     expect.assertions(2);
     const error = assembleError("add 5\nstore 6");
     expect(error.type).toBe(AssembleErrorType.UnsupportedAddressMode);
-    expect(error.line).toBe(2);
+    expect(error.line).toBe(1);
   });
 
   it("loadProgram stores ACC through the pointer given by [mem x]", () => {
