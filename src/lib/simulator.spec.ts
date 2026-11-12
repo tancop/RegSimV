@@ -32,7 +32,7 @@ describe("simulator", () => {
       "MBR => IR",
       "INCREMENT PC",
       "DECODE",
-      "IR operand => MBR",
+      "IR op. => MBR",
       "mADD",
     ]);
     expect(sim.uopIndex).toBe(6);
