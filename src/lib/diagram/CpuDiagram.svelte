@@ -1,5 +1,6 @@
 <script lang="ts">
   import Alu from "#lib/assets/alu.svg.svelte";
+  import FlagsCard from "./FlagsCard.svelte";
   import RegisterCard from "./RegisterCard.svelte";
 
   export interface Registers {
@@ -11,6 +12,11 @@
     sr: number;
     ins: string;
     uop: string;
+
+    cf: boolean;
+    zf: boolean;
+    sf: boolean;
+    of: boolean;
   }
 
   interface Props {
@@ -31,7 +37,7 @@
 
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="ACC" value={registers.acc} />
-    <RegisterCard name="FLAGS" value={registers.sr} />
+    <FlagsCard cf={registers.cf} zf={registers.zf} sf={registers.sf} of={registers.of} />
     <RegisterCard name="IR" value={registers.ir} />
   </div>
 </div>
