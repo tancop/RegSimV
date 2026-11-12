@@ -15,7 +15,7 @@
   let sim = $state(new Simulator());
   let source = $state(DEMO);
   let runtimeError = $state("");
-  let memory = $state(new SvelteMap<number, number>());
+  let memory = $state(new SvelteMap<number, number>([[0, 0]]));
   let dataMemoryStart = $state(1024);
   let tick = $state(0);
 
@@ -191,8 +191,14 @@
     <div class="size-full grid grid-cols-8 overflow-y-scroll">
       {#each memoryView as { idx, value, initialized }}
         <input
-          value={initialized ? String(value) : "-"}
+          placeholder="-"
+          value={initialized ? String(value) : undefined}
           onchange={(e) => {
+            let value = e.currentTarget.value;
+            if (value === undefined || value.trim() === "") {
+              memory.delete(idx);
+              return;
+            }
             memory.set(idx, parseInt(e.currentTarget.value));
           }}
         />
