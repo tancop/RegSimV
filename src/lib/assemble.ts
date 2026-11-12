@@ -105,8 +105,8 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
     if (bad) {
       throw new AssembleError(
         AssembleErrorType.TooManyColons,
-        i + 1,
-        `Line ${i + 1}: too many ':' characters on line`,
+        i,
+        `Line ${i}: too many ':' characters on line`,
       );
     }
 
@@ -114,8 +114,8 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
       if (label.length === 0 || /\d/.test(label[0])) {
         throw new AssembleError(
           AssembleErrorType.InvalidLabel,
-          i + 1,
-          `Line ${i + 1}: invalid label "${label}" (labels cannot be empty or start with a digit)`,
+          i,
+          `Line ${i}: invalid label "${label}" (labels cannot be empty or start with a digit)`,
         );
       }
 
@@ -145,8 +145,8 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
     if (op === undefined) {
       throw new AssembleError(
         AssembleErrorType.UnknownMnemonic,
-        i + 1,
-        `Line ${i + 1}: unknown mnemonic "${mnemonicRaw}"`,
+        i,
+        `Line ${i}: unknown mnemonic "${mnemonicRaw}"`,
       );
     }
 
@@ -159,8 +159,8 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
       if (operandRaw === undefined) {
         throw new AssembleError(
           AssembleErrorType.MissingOperand,
-          i + 1,
-          `Line ${i + 1}: ${mnemonic} needs an operand`,
+          i,
+          `Line ${i}: ${mnemonic} needs an operand`,
         );
       }
 
@@ -180,8 +180,8 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
         // operand, e.g. `[mem]`, `[x]`, or an unbalanced `1024]`.
         throw new AssembleError(
           AssembleErrorType.MalformedOperand,
-          i + 1,
-          `Line ${i + 1}: malformed operand "${operandRaw}"`,
+          i,
+          `Line ${i}: malformed operand "${operandRaw}"`,
         );
       } else {
         text = operandRaw;
@@ -203,22 +203,22 @@ export function assemble(source: string, opcodes: OpcodeTable): (number | undefi
         if (parsed < MIN_OPERAND || parsed > MAX_OPERAND) {
           throw new AssembleError(
             AssembleErrorType.InvalidOperand,
-            i + 1,
-            `Line ${i + 1}: operand ${text} is out of range -8388608..8388607`,
+            i,
+            `Line ${i}: operand ${text} is out of range -8388608..8388607`,
           );
         }
         operand = parsed & OPERAND_MASK;
       } else if (bracketed) {
         throw new AssembleError(
           AssembleErrorType.MalformedOperand,
-          i + 1,
-          `Line ${i + 1}: malformed operand "${operandRaw}"`,
+          i,
+          `Line ${i}: malformed operand "${operandRaw}"`,
         );
       } else {
         throw new AssembleError(
           AssembleErrorType.InvalidOperand,
-          i + 1,
-          `Line ${i + 1}: operand must be a label or an integer -8388608..8388607`,
+          i,
+          `Line ${i}: operand must be a label or an integer -8388608..8388607`,
         );
       }
     }
