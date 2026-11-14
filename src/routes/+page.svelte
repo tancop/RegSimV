@@ -213,7 +213,7 @@
     {/if}
     <p>ins = {registers.ins}</p>
     <p>uop = {registers.uop}</p>
-    <p>RegSimV</p>
+    <a href="https://github.com/tancop/RegSimV" class="text-sky-400 underline">GitHub</a>
   </div>
   <div class="w-full h-full flex min-h-0 overflow-y-scroll">
     <div class="h-full min-w-15">
