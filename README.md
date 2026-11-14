@@ -1,3 +1,7 @@
-# RegSim
+# RegSimV
 
-A simple CPU simulator with microcode and custom instructions. Remade for 2026 from an old Java app.
+Bakalársky projekt FIIT STU 2026-27
+
+```shell
+pnpm run dev
+```
