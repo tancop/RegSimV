@@ -8,20 +8,13 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [24.x, 26.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
     steps:
     - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js 26
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 26.x
     - name: Setup pnpm
       uses: pnpm/action-setup@v6.1.1
       with:
@@ -32,9 +25,20 @@ jobs:
     - run: pnpm build
     - run: pnpm test
 
-    - name: Upload GitHub Pages artifact
-      uses: actions/upload-pages-artifact@v5.0.0
-      with:
-        path: build/
-    - name: Deploy to GitHub Pages
-      uses: actions/deploy-pages@v5.0.1
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: build/
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5.0.1
