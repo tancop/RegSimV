@@ -12,11 +12,11 @@
   });
 </script>
 
-<section class="flex flex-col w-65 h-20 font-mono border border-black">
+<section class="flex flex-col w-65 border border-black">
   <div class="flex px-1 w-full justify-between">
-    <h2 class="flex-1 font-sans font-bold">{name}:</h2>
+    <h2 class="flex-1 font-bold">{name}:</h2>
     <p class="flex-1 text-center">{value}</p>
-    <p class="flex-1 text-right">0x{value.toString(16)}</p>
+    <p class="flex-1 font-mono text-right">0x{value.toString(16)}</p>
   </div>
-  <p class="text-sm tracking-tight w-full text-center">{binValue}</p>
+  <p class="text-sm font-mono tracking-tight w-full text-center">{binValue}</p>
 </section>
