@@ -9,7 +9,6 @@
   import { onMount } from "svelte";
   import { range } from "#lib/range.ts";
   import CodeInput from "#lib/CodeInput.svelte";
-  import { INVALID_INSTRUCTION } from "#lib/encoding.ts";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 

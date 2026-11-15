@@ -10,12 +10,6 @@ export interface Instruction {
   addressMode: AddressMode;
 }
 
-export const INVALID_INSTRUCTION = {
-  opcode: -1,
-  operand: -1,
-  addressMode: AddressMode.Immediate,
-} satisfies Instruction;
-
 export function decodeInstruction(ins: number): Instruction {
   if (ins > 0xffffffff) {
     throw new RangeError("Instruction must be a 32-bit number");
