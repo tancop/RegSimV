@@ -32,14 +32,20 @@
   const { registers, opcodes }: Props = $props();
 </script>
 
-<div class="flex size-full justify-around bg-white">
+<div class="flex size-full justify-between bg-white">
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="MBR" value={registers.mbr} />
     <RegisterCard name="MAR" value={registers.mar} />
     <RegisterCard name="PC" value={registers.pc} />
   </div>
 
-  <Alu className="w-40" />
+  <div class="flex flex-col h-full py-3">
+    <div class="flex-1"></div>
+    <Alu className="flex-1 w-40" />
+    <div class="flex-1">
+      <p>[Control Unit]</p>
+    </div>
+  </div>
 
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="ACC" value={registers.acc} />
