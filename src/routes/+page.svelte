@@ -9,6 +9,7 @@
   import { onMount } from "svelte";
   import { range } from "#lib/range.ts";
   import CodeInput from "#lib/CodeInput.svelte";
+  import { INVALID_INSTRUCTION } from "#lib/encoding.ts";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
@@ -161,7 +162,6 @@
 
   let registers = $derived.by<Registers>(() => {
     void tick;
-    const opcode = sim.decodedInstruction?.opcode;
     return {
       pc: sim.pc,
       acc: sim.acc,
@@ -169,7 +169,7 @@
       mbr: sim.mbr,
       ir: sim.ir,
       sr: sim.srValue(),
-      ins: opcode !== undefined ? OPCODES.indexToName[opcode] : "[none]",
+      instruction: sim.decodedInstruction,
       uop: sim.uopNames[sim.uopIndex] ?? "[none]",
       ef: sim.ef,
       zf: sim.zf,
@@ -198,7 +198,7 @@
 <main class="mx-auto grid main-grid p-5 size-full">
   <CodeInput bind:source errorLine={assembleError?.line} />
   <div class="w-full flex flex-col">
-    <CpuDiagram {registers} />
+    <CpuDiagram {registers} opcodes={OPCODES} />
     <div class="flex gap-3 items-start">
       <Button onclick={uStep} text="Micro" />
       <Button onclick={step} text="Step" />
@@ -212,7 +212,6 @@
     {:else if runtimeError}
       <ErrorText error={runtimeError} />
     {/if}
-    <p>ins = {registers.ins}</p>
     <p>uop = {registers.uop}</p>
     <a href="https://github.com/tancop/RegSimV" class="text-sky-400 underline">GitHub</a>
   </div>
