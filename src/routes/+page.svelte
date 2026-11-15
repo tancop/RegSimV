@@ -206,14 +206,16 @@
       <Button onclick={reset} text="Reset" />
     </div>
   </div>
-  <div class="size-full overflow-hidden">
+  <div class="flex flex-col size-full overflow-hidden">
     {#if assembleError}
       <ErrorText error={assembleError.message} />
     {:else if runtimeError}
       <ErrorText error={runtimeError} />
     {/if}
-    <p>uop = {registers.uop}</p>
-    <a href="https://github.com/tancop/RegSimV" class="text-sky-400 underline">GitHub</a>
+    <div class="h-full"></div>
+    <h1 class="font-bold text-xl">RegSimV</h1>
+    <p class="text-sm">2026 Teodor Potančok</p>
+    <a href="https://github.com/tancop/RegSimV" class="text-sky-500 underline">GitHub</a>
   </div>
   <div class="w-full h-full flex min-h-0 overflow-y-scroll">
     <div class="h-full min-w-15">
