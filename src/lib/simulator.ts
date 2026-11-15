@@ -75,10 +75,11 @@ export class Simulator {
   acc = 0;
 
   // Flags
-  ef = false; // Carry Flag
-  zf = false; // Zero Flag
-  nf = false; // Sign Flag
-  of = false; // Overflow Flag
+  ef = false; // Equal
+  zf = false; // Zero
+  nf = false; // Negative
+  of = false; // Overflow
+  cf = false; // Compare (<)
 
   // Memory
   memory = new Uint32Array(MEMORY_SIZE);
@@ -202,10 +203,11 @@ export class Simulator {
           this.ir = value;
           break;
         case Field.SR:
-          this.ef = (value & 0b1000) !== 0;
-          this.of = (value & 0b0100) !== 0;
-          this.nf = (value & 0b0010) !== 0;
-          this.zf = (value & 0b0001) !== 0;
+          this.cf = (value & 0b10000) !== 0;
+          this.ef = (value & 0b01000) !== 0;
+          this.of = (value & 0b00100) !== 0;
+          this.nf = (value & 0b00010) !== 0;
+          this.zf = (value & 0b00001) !== 0;
           break;
         case Field.ACC:
           this.acc = value;
@@ -282,6 +284,7 @@ export class Simulator {
     this.pc = 0;
     this.ir = 0;
     this.acc = 0;
+    this.cf = false;
     this.ef = false;
     this.zf = false;
     this.nf = false;
@@ -395,7 +398,7 @@ export class Simulator {
 
   // Returns the value of SR as a number. This is the format used by SR=>ACC.
   srValue(): number {
-    return (+this.ef << 3) | (+this.of << 2) | (+this.nf << 1) | +this.zf;
+    return (+this.cf << 4) | (+this.ef << 3) | (+this.of << 2) | (+this.nf << 1) | +this.zf;
   }
 
   // Installs a fresh fetch/decode iterator and points the uop cursor just

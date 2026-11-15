@@ -17,6 +17,7 @@
     zf: boolean;
     nf: boolean;
     of: boolean;
+    cf: boolean;
   }
 
   interface Props {
@@ -37,7 +38,13 @@
 
   <div class="flex flex-col h-full justify-between py-3">
     <RegisterCard name="ACC" value={registers.acc} />
-    <FlagsCard ef={registers.ef} zf={registers.zf} nf={registers.nf} of={registers.of} />
+    <FlagsCard
+      ef={registers.ef}
+      zf={registers.zf}
+      nf={registers.nf}
+      of={registers.of}
+      cf={registers.cf}
+    />
     <RegisterCard name="IR" value={registers.ir} />
   </div>
 </div>

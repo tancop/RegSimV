@@ -236,13 +236,13 @@ export const BUILTIN_OPCODES: OpcodeDefinition[] = [
   {
     name: "JC",
     uops: {
-      immediate: ["irToMbr", "testNotCf", "mbrToPc"],
+      immediate: ["irToMbr", "testNotEf", "mbrToPc"],
     },
   },
   {
     name: "JNC",
     uops: {
-      immediate: ["irToMbr", "testCf", "mbrToPc"],
+      immediate: ["irToMbr", "testEf", "mbrToPc"],
     },
   },
   {

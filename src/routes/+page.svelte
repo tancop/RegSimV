@@ -175,6 +175,7 @@
       zf: sim.zf,
       nf: sim.nf,
       of: sim.of,
+      cf: sim.cf,
     };
   });
 
@@ -218,7 +219,9 @@
   <div class="w-full h-full flex min-h-0 overflow-y-scroll">
     <div class="h-full min-w-15">
       {#each range(Math.ceil((MEMORY_SIZE - dataMemoryStart) / 8)) as idx}
-        <p class="h-6 text-md/6 text-gray-600 font-mono text-start">{dataMemoryStart + idx * 8}</p>
+        <p class="h-6 text-md/6 text-gray-600 font-mono text-start">
+          {dataMemoryStart + idx * 8}
+        </p>
       {/each}
     </div>
     <div class="size-full grid grid-cols-8">

@@ -193,6 +193,7 @@ export const UOPS = {
     st.save(Field.SR, st.srValue());
     st.saveCount(1);
     st.ef = st.acc == st.mbr;
+    st.cf = st.acc < st.mbr;
   },
 
   testAcc(st) {
@@ -207,13 +208,13 @@ export const UOPS = {
       st.skipNext = true;
     }
   },
-  testCf(st) {
+  testEf(st) {
     st.saveCount(0);
     if (st.ef) {
       st.skipNext = true;
     }
   },
-  testNotCf(st) {
+  testNotEf(st) {
     st.saveCount(0);
     if (!st.ef) {
       st.skipNext = true;
@@ -271,6 +272,7 @@ export const UOPS = {
   clearSr(st) {
     st.save(Field.SR, st.srValue());
     st.saveCount(1);
+    st.cf = false;
     st.ef = false;
     st.zf = false;
     st.nf = false;
@@ -317,7 +319,7 @@ export const UOPS = {
 export type UOp = keyof typeof UOPS;
 
 // List of UOps that might need to skip ahead
-export const BRANCHY_UOPS: UOp[] = ["testAcc", "testNotAcc", "testCf", "testNotCf"];
+export const BRANCHY_UOPS: UOp[] = ["testAcc", "testNotAcc", "testEf", "testNotEf"];
 
 // Maps ID to human readable name
 export const NAME_TO_UOP = {
@@ -350,8 +352,8 @@ export const NAME_TO_UOP = {
   lshiftAcc: "LSHIFT ACC",
   rshiftAcc: "RSHIFT ACC",
   nop: "NOP",
-  testCf: "TEST EF",
-  testNotCf: "TESTN EF",
+  testEf: "TEST EF",
+  testNotEf: "TESTN EF",
   lshiftAccOf: "LSHIFT ACC OF",
   rshiftAccOf: "RSHIFT ACC OF",
   clearSr: "CLEAR SR",
