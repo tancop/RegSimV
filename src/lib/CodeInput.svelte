@@ -11,8 +11,8 @@
   let lineCount = $derived(source.split("\n").length);
 </script>
 
-<div class="flex gap-2 size-full">
-  <div class="flex flex-col">
+<div class="flex gap-2 size-full overflow-y-auto">
+  <div class="flex flex-col w-6">
     {#each range(lineCount) as idx}
       <p
         class="h-6 text-md/6 font-mono text-start
