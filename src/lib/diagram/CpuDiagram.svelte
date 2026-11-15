@@ -2,6 +2,7 @@
   import Alu from "#lib/assets/alu.svg.svelte";
   import type { Instruction } from "#lib/encoding.ts";
   import type { OpcodeTable } from "#lib/opcodes.ts";
+  import ControlCard from "./ControlCard.svelte";
   import DecoderCard from "./DecoderCard.svelte";
   import FlagsCard from "./FlagsCard.svelte";
   import RegisterCard from "./RegisterCard.svelte";
@@ -42,8 +43,8 @@
   <div class="flex flex-col h-full py-3">
     <div class="flex-1"></div>
     <Alu className="flex-1 w-40" />
-    <div class="flex-1">
-      <p>[Control Unit]</p>
+    <div class="flex-1 flex items-end">
+      <ControlCard value={registers.uop} />
     </div>
   </div>
 
