@@ -293,65 +293,6 @@ export class Simulator {
     this.uBack();
   }
 
-  // Prints and returns the changes recorded by the last `n` executed uops,
-  // oldest first, all changes of one uop on one line: `MBR=100 MAR=-1`,
-  // flags as `C=0 O=1 N=0 Z=0`, IR decoded as `ADD 4`. Uops that changed no
-  // fields print a single `-`. Shows fewer than `n` lines if the history
-  // does not go back that far.
-  showHistory(n: number): string[] {
-    // Backward cursor over the parallel history arrays, spilling into
-    // rotated-out arrays exactly like `restore` does.
-    let fields = this.historyFields;
-    let values = this.historyValues;
-    let counts = this.historyCounts;
-    let fIdx = this.historyFieldsIdx;
-    let vIdx = this.historyValuesIdx;
-    let cIdx = this.historyCountsIdx;
-    const prevFields = [...this.prevHistoryFields];
-    const prevValues = [...this.prevHistoryValues];
-    const prevCounts = [...this.prevHistoryCounts];
-
-    const readField = (): number => {
-      if (fIdx === 0) {
-        const prev = prevFields.pop() as Int16Array<ArrayBuffer> | undefined;
-        if (!prev) throw new Error("No history to show");
-        fields = prev;
-        fIdx = HISTORY_ARRAY_LENGTH;
-      }
-      return fields[--fIdx];
-    };
-    const readValue = (): number => {
-      if (vIdx === 0) {
-        const prev = prevValues.pop() as Int32Array<ArrayBuffer> | undefined;
-        if (!prev) throw new Error("No history to show");
-        values = prev;
-        vIdx = HISTORY_ARRAY_LENGTH;
-      }
-      return values[--vIdx];
-    };
-
-    const groups: string[][] = [];
-    for (let i = 0; i < n; i++) {
-      if (cIdx === 0) {
-        const prev = prevCounts.pop() as Uint8Array<ArrayBuffer> | undefined;
-        if (!prev) break; // Ran out of history; show what we have.
-        counts = prev;
-        cIdx = HISTORY_ARRAY_LENGTH;
-      }
-      const count = counts[--cIdx];
-      const parts: string[] = [];
-      for (let j = 0; j < count; j++) {
-        // Fields are read newest-first, so push and reverse after.
-        parts.push(formatField(readField(), readValue(), this.opcodes));
-      }
-      groups.push(parts.reverse());
-    }
-
-    const lines = groups.reverse().map((parts) => parts.join(" ") || "-");
-    console.log(lines.join("\n"));
-    return lines;
-  }
-
   reset(): void {
     this.mar = 0;
     this.mbr = 0;
