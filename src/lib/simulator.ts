@@ -1,5 +1,5 @@
 import { AddressMode, decodeInstruction, type Instruction } from "./encoding";
-import type { OpcodeTable } from "./opcodes";
+import { BUILTIN_OPCODES, createOpcodeTable, type OpcodeTable } from "./opcodes";
 import { compile, compileVariant, type CompiledOperation } from "./jit";
 import { NAME_TO_UOP, UOPS, type UOp } from "./uops";
 
@@ -99,7 +99,7 @@ export class Simulator {
 
   decodedInstruction?: Instruction;
 
-  opcodes?: OpcodeTable;
+  opcodes: OpcodeTable = createOpcodeTable(BUILTIN_OPCODES);
   compiledOps: CompiledOperation[] = [];
   currentOp?: IterableIterator<number>;
 
@@ -171,8 +171,60 @@ export class Simulator {
     this.historyCounts[this.historyCountsIdx++] = count;
   }
 
+  // Non-destructive backward scan for the most recent write to `field`,
+  // rotated-out history arrays included. Plain iteration: nothing is popped.
+  private hasHistoryField(field: number): boolean {
+    for (let i = this.historyFieldsIdx - 1; i >= 0; i--) {
+      if (this.historyFields[i] === field) return true;
+    }
+    for (let a = this.prevHistoryFields.length - 1; a >= 0; a--) {
+      const fields = this.prevHistoryFields[a];
+      for (let i = fields.length - 1; i >= 0; i--) {
+        if (fields[i] === field) return true;
+      }
+    }
+    return false;
+  }
+
+  // Restores the decoder and micro-op cursor when a backward step crosses an
+  // instruction boundary. The live IR still holds the instruction that just
+  // finished, so decode it and point at that instruction's final micro-op.
+  // With no IR write in history the cursor falls back to the initial boundary.
+  private restorePreviousInstruction(): void {
+    if (!this.hasHistoryField(Field.IR)) {
+      this.decodedInstruction = undefined;
+      this.currentUops = [];
+      this.uopIndex = -1;
+      this.currentOp = undefined;
+      return;
+    }
+    const instruction = decodeInstruction(this.ir);
+    const operation = this.opcodes.uops[instruction.opcode];
+    let variantUops: UOp[] | undefined;
+    switch (instruction.addressMode) {
+      case AddressMode.Immediate:
+        variantUops = operation?.immediate;
+        break;
+      case AddressMode.Direct:
+        variantUops = operation?.direct;
+        break;
+      case AddressMode.Indirect:
+        variantUops = operation?.indirect;
+        break;
+    }
+    this.decodedInstruction = instruction;
+    this.currentUops = [...DECODE_SEQUENCE, ...(variantUops ?? [])];
+    this.uopIndex = this.currentUops.length - 1;
+    // Let the next forward micro-step start a fresh fetch at the restored PC.
+    this.currentOp = undefined;
+  }
+
   // Undoes the most recently executed uop, restoring the fields it recorded.
-  restore(): void {
+  uBack(): void {
+    const crossedBoundary = this.uopIndex === 0;
+    if (crossedBoundary) {
+      this.restorePreviousInstruction();
+    }
     if (this.historyCountsIdx === 0) {
       if (this.prevHistoryCounts.length === 0) {
         throw new Error("No history to restore");
@@ -216,7 +268,21 @@ export class Simulator {
     }
 
     // Move the micro-op cursor back so the display matches the restored state.
-    if (this.uopIndex >= 0) this.uopIndex--;
+    // A boundary crossing already placed the cursor on the previous
+    // instruction's final micro-op, so it must not be decremented again.
+    if (!crossedBoundary && this.uopIndex >= 0) this.uopIndex--;
+
+    this.halted = false;
+  }
+
+  back(): void {
+    if (this.uopIndex < 0) return;
+    // Run the current instruction back to its first micro-op without crossing.
+    while (this.uopIndex > 0) {
+      this.uBack();
+    }
+    // One more step crosses the boundary and restores the previous instruction.
+    this.uBack();
   }
 
   // Prints and returns the changes recorded by the last `n` executed uops,

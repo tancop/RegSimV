@@ -38,8 +38,48 @@ describe("simulator", () => {
     expect(sim.uopIndex).toBe(6);
     expect(sim.uopNames[sim.uopIndex]).toBe("mADD");
     expect(sim.acc).toBe(5);
-    sim.restore();
+    sim.uBack();
     expect(sim.uopIndex).toBe(5);
+  });
+
+  it("steps the whole instruction back to the previous boundary", () => {
+    expect.assertions(4);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD 5\nHALT", OPCODES));
+    for (let i = 0; i < 7; i++) sim.uStep();
+    expect(sim.uopIndex).toBe(6);
+    expect(sim.acc).toBe(5);
+    sim.back();
+    // The cursor lands on the boundary, not on the instruction's first uop.
+    expect(sim.uopIndex).toBe(-1);
+    expect(sim.acc).toBe(0);
+  });
+
+  it("restores the previous instruction when a backward step crosses a boundary", () => {
+    expect.assertions(5);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.step(); // ADD 5, then start ADD 7 (first micro-op)
+    for (let i = 0; i < 6; i++) sim.uStep(); // finish ADD 7
+    expect(sim.uopIndex).toBe(6);
+    expect(sim.acc).toBe(12);
+    sim.back();
+    // The decoder and cursor point at the previous instruction's final uop.
+    expect(sim.decodedInstruction?.operand).toBe(5);
+    expect(sim.uopIndex).toBe(6);
+    expect(sim.acc).toBe(5);
+  });
+
+  it("restores the previous instruction on a single uBack across a boundary", () => {
+    expect.assertions(4);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.step(); // ADD 5, then start ADD 7 (first micro-op)
+    expect(sim.uopIndex).toBe(0);
+    expect(sim.decodedInstruction?.operand).toBe(5);
+    sim.uBack();
+    expect(sim.uopIndex).toBe(6);
+    expect(sim.decodedInstruction?.operand).toBe(5);
   });
 
   it("rejects out-of-range memory access", () => {
@@ -443,7 +483,7 @@ describe("simulator time travel", () => {
     sim.store(500, 42);
     UOPS.writeMem(sim);
     expect(sim.memory[500]).toBe(7);
-    sim.restore();
+    sim.uBack();
     expect(sim.memory[500]).toBe(42);
   });
 
@@ -454,7 +494,7 @@ describe("simulator time travel", () => {
     sim.nf = true;
     UOPS.setOf(sim);
     expect(sim.of).toBe(true);
-    sim.restore();
+    sim.uBack();
     expect(sim.of).toBe(false);
     expect(sim.ef).toBe(true);
     expect(sim.nf).toBe(true);
@@ -471,7 +511,7 @@ describe("simulator time travel", () => {
     sim.acc = 123;
     UOPS.srToAcc(sim);
     expect(sim.acc).toBe(0b1111);
-    sim.restore();
+    sim.uBack();
     expect(sim.acc).toBe(123);
   });
 
@@ -483,7 +523,7 @@ describe("simulator time travel", () => {
     expect(sim.acc).toBe(5);
     expect(sim.pc).toBe(1);
     while (sim.historyCountsIdx > 0 || sim.prevHistoryCounts.length > 0) {
-      sim.restore();
+      sim.uBack();
     }
     expect(sim.acc).toBe(0);
     expect(sim.pc).toBe(0);
@@ -509,7 +549,7 @@ describe("simulator time travel", () => {
     expect(sim.prevHistoryValues).toHaveLength(1);
     expect(sim.prevHistoryCounts).toHaveLength(1);
     for (let i = 0; i < len + 1; i++) {
-      sim.restore();
+      sim.uBack();
     }
     expect(sim.acc).toBe(0);
     expect(sim.prevHistoryFields).toHaveLength(0);
@@ -518,7 +558,7 @@ describe("simulator time travel", () => {
 
   it("throws when restoring with no history", () => {
     expect.assertions(1);
-    expect(() => new Simulator().restore()).toThrow();
+    expect(() => new Simulator().uBack()).toThrow();
   });
 });
 

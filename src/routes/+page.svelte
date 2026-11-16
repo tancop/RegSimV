@@ -131,6 +131,32 @@
     refresh();
   }
 
+  function uBack() {
+    if (!program || !running) return;
+    runtimeError = "";
+
+    try {
+      sim.uBack();
+    } catch (e) {
+      runtimeError = e instanceof Error ? e.message : String(e);
+    }
+
+    refresh();
+  }
+
+  function back() {
+    if (!program || !running) return;
+    runtimeError = "";
+
+    try {
+      sim.back();
+    } catch (e) {
+      runtimeError = e instanceof Error ? e.message : String(e);
+    }
+
+    refresh();
+  }
+
   function run() {
     if (!program) return;
     runtimeError = "";
@@ -199,6 +225,8 @@
   <div class="w-full flex flex-col">
     <CpuDiagram {registers} opcodes={OPCODES} />
     <div class="flex gap-3 items-start">
+      <Button onclick={back} text="Back" />
+      <Button onclick={uBack} text="Back 1" />
       <Button onclick={uStep} text="Micro" />
       <Button onclick={step} text="Step" />
       <Button onclick={run} text="Run" />
