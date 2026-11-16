@@ -82,6 +82,55 @@ describe("simulator", () => {
     expect(sim.decodedInstruction?.operand).toBe(5);
   });
 
+  it("resumes the next micro-op forward after stepping back", () => {
+    expect.assertions(4);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.step(); // ADD 5, then start ADD 7 (first micro-op)
+    sim.uStep(); // READ MEM
+    sim.uStep(); // MBR => IR
+    expect(sim.uopIndex).toBe(2);
+    sim.uBack();
+    expect(sim.uopNames[sim.uopIndex]).toBe("READ MEM");
+    sim.uStep();
+    expect(sim.uopNames[sim.uopIndex]).toBe("MBR => IR");
+    expect(sim.uopIndex).toBe(2);
+  });
+
+  it("re-fetches the current instruction after backing across a boundary", () => {
+    expect.assertions(4);
+    const sim = new Simulator();
+    sim.loadProgram(OPCODES, assemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.step(); // ADD 5, then start ADD 7
+    for (let i = 0; i < 6; i++) sim.uStep(); // finish ADD 7
+    sim.back(); // back to ADD 5's final micro-op
+    expect(sim.acc).toBe(5);
+    sim.uStep(); // finishes ADD 5 and starts ADD 7's fetch
+    expect(sim.uopIndex).toBe(0);
+    expect(sim.uopNames[sim.uopIndex]).toBe("PC => MAR");
+    sim.uStep();
+    expect(sim.uopNames[sim.uopIndex]).toBe("READ MEM");
+  });
+
+  it("replays forward identically after rewinding to the start", () => {
+    expect.assertions(4);
+    const sim = new Simulator();
+    // JZ with a non-zero accumulator skips its branch uop, exercising the
+    // branchy skip path on the way down and back up.
+    sim.loadProgram(OPCODES, assemble("ADD 5\nJZ 2\nADD 7\nHALT", OPCODES));
+    const steps = 20;
+    for (let i = 0; i < steps; i++) sim.uStep();
+    const pc = sim.pc;
+    const acc = sim.acc;
+    const counts = sim.historyCountsIdx;
+    for (let i = 0; i < steps; i++) sim.uBack();
+    expect(sim.historyCountsIdx).toBe(0);
+    for (let i = 0; i < steps; i++) sim.uStep();
+    expect(sim.pc).toBe(pc);
+    expect(sim.acc).toBe(acc);
+    expect(sim.historyCountsIdx).toBe(counts);
+  });
+
   it("rejects out-of-range memory access", () => {
     expect.assertions(1);
     const sim = new Simulator();

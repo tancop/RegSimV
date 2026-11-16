@@ -1,7 +1,6 @@
 import { AddressMode, decodeInstruction, type Instruction } from "./encoding";
 import { BUILTIN_OPCODES, createOpcodeTable, type OpcodeTable } from "./opcodes";
-import { compile, compileVariant, type CompiledOperation } from "./jit";
-import { NAME_TO_UOP, UOPS, type UOp } from "./uops";
+import { BRANCHY_UOPS, NAME_TO_UOP, UOPS, type UOp } from "./uops";
 
 export const MEMORY_SIZE = 2048;
 
@@ -16,6 +15,7 @@ export enum Field {
   IR = -4,
   SR = -5,
   ACC = -6,
+  SKIP = -7,
 }
 
 /**
@@ -60,6 +60,8 @@ function formatField(field: number, value: number, opcodes?: OpcodeTable): strin
       );
     case Field.ACC:
       return `ACC=${value}`;
+    case Field.SKIP:
+      return `SKIP=${value}`;
     default:
       // Non-negative fields are memory cell numbers.
       return `mem[${field}]=${value}`;
@@ -100,8 +102,6 @@ export class Simulator {
   decodedInstruction?: Instruction;
 
   opcodes: OpcodeTable = createOpcodeTable(BUILTIN_OPCODES);
-  compiledOps: CompiledOperation[] = [];
-  currentOp?: IterableIterator<number>;
 
   // Micro-ops of the instruction currently executing: the fetch/decode prefix,
   // extended with the operation's address-mode variant once DECODE has run.
@@ -123,11 +123,32 @@ export class Simulator {
     this.currentUops = [...DECODE_SEQUENCE, ...uops];
   }
 
+  // Micro-ops for `instruction`'s address-mode variant. Throws when the opcode
+  // table has no variant for that address mode.
+  variantUopsFor(instruction: Instruction): UOp[] {
+    const operation = this.opcodes.uops[instruction.opcode];
+    let variant: UOp[] | undefined;
+    switch (instruction.addressMode) {
+      case AddressMode.Immediate:
+        variant = operation?.immediate;
+        break;
+      case AddressMode.Direct:
+        variant = operation?.direct;
+        break;
+      case AddressMode.Indirect:
+        variant = operation?.indirect;
+        break;
+    }
+    if (!variant) {
+      throw new Error(
+        `No variant for opcode ${instruction.opcode} with address mode ${instruction.addressMode}`,
+      );
+    }
+    return variant;
+  }
+
   // Statistics
   uopsExecuted = 0;
-
-  decodeSequence: (st: Simulator, ops: typeof UOPS) => IterableIterator<number> =
-    compileVariant(DECODE_SEQUENCE);
 
   // History
 
@@ -195,28 +216,12 @@ export class Simulator {
       this.decodedInstruction = undefined;
       this.currentUops = [];
       this.uopIndex = -1;
-      this.currentOp = undefined;
       return;
     }
     const instruction = decodeInstruction(this.ir);
-    const operation = this.opcodes.uops[instruction.opcode];
-    let variantUops: UOp[] | undefined;
-    switch (instruction.addressMode) {
-      case AddressMode.Immediate:
-        variantUops = operation?.immediate;
-        break;
-      case AddressMode.Direct:
-        variantUops = operation?.direct;
-        break;
-      case AddressMode.Indirect:
-        variantUops = operation?.indirect;
-        break;
-    }
     this.decodedInstruction = instruction;
-    this.currentUops = [...DECODE_SEQUENCE, ...(variantUops ?? [])];
+    this.setVariantUops(this.variantUopsFor(instruction));
     this.uopIndex = this.currentUops.length - 1;
-    // Let the next forward micro-step start a fresh fetch at the restored PC.
-    this.currentOp = undefined;
   }
 
   // Undoes the most recently executed uop, restoring the fields it recorded.
@@ -263,6 +268,9 @@ export class Simulator {
           break;
         case Field.ACC:
           this.acc = value;
+          break;
+        case Field.SKIP:
+          this.skipNext = value !== 0;
           break;
       }
     }
@@ -358,7 +366,6 @@ export class Simulator {
     this.halted = false;
     this.skipNext = false;
     this.decodedInstruction = undefined;
-    this.currentOp = undefined;
     this.currentUops = [];
     this.uopIndex = -1;
     this.memory.fill(0);
@@ -378,7 +385,6 @@ export class Simulator {
     this.pc = start;
     this.halted = false;
 
-    this.compiledOps = compile(opcodes.uops);
     this.opcodes = opcodes;
   }
 
@@ -467,14 +473,27 @@ export class Simulator {
     return (+this.cf << 4) | (+this.ef << 3) | (+this.of << 2) | (+this.nf << 1) | +this.zf;
   }
 
-  // Installs a fresh fetch/decode iterator and points the uop cursor just
+  // Installs a fresh fetch/decode microprogram and points the uop cursor just
   // before its first micro-op.
-  private startDecode(): IterableIterator<number> {
-    const op = this.decodeSequence(this, UOPS);
-    this.currentOp = op;
+  private startDecode(): void {
     this.currentUops = DECODE_SEQUENCE;
     this.uopIndex = -1;
-    return op;
+  }
+
+  // Executes one micro-op directly from `currentUops`, mirroring the branchy
+  // skip rule: a uop following a branchy uop is skipped while `skipNext` is
+  // set. A skipped uop still records an empty (skip-flag) history entry so
+  // that backward steps stay aligned.
+  private executeUop(index: number): void {
+    const branchyPredecessor =
+      index > 0 && BRANCHY_UOPS.includes(this.currentUops[index - 1]);
+    if (branchyPredecessor && this.skipNext) {
+      this.save(Field.SKIP, 1);
+      this.skipNext = false;
+      this.saveCount(1);
+      return;
+    }
+    UOPS[this.currentUops[index]](this);
   }
 
   // Advances one micro-op. Starts a new instruction's fetch/decode sequence
@@ -485,18 +504,23 @@ export class Simulator {
   // instruction has fully executed (or the simulator is halted).
   uStep(): boolean {
     if (this.halted) return true;
-    let op = this.currentOp;
-    if (!op) {
-      op = this.startDecode();
+    if (this.currentUops.length === 0) {
+      this.startDecode();
+      this.executeUop(0);
+      this.uopIndex = 0;
+      return false;
     }
-    const result = op.next();
-    if (result.done) {
+    const next = this.uopIndex + 1;
+    if (next >= this.currentUops.length) {
       // The instruction just finished; begin the next one right away.
-      this.startDecode().next();
+      this.uopsExecuted += this.currentUops.length;
+      this.startDecode();
+      this.executeUop(0);
       this.uopIndex = 0;
       return true;
     }
-    this.uopIndex++;
+    this.executeUop(next);
+    this.uopIndex = next;
     return false;
   }
 

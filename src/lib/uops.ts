@@ -1,4 +1,4 @@
-import { AddressMode, decodeInstruction } from "./encoding";
+import { decodeInstruction } from "./encoding";
 import { Field, type Simulator } from "./simulator";
 
 export type UOps = Record<string, (st: Simulator) => void>;
@@ -90,31 +90,7 @@ export const UOPS = {
   decode(st) {
     st.saveCount(0);
     st.decodedInstruction = decodeInstruction(st.ir);
-    const operation = st.compiledOps[st.decodedInstruction.opcode];
-    const definition = st.opcodes?.uops[st.decodedInstruction.opcode];
-    let variant: ((st: Simulator, ops: UOps) => IterableIterator<number>) | undefined;
-    let variantUops: UOp[] | undefined;
-    switch (st.decodedInstruction.addressMode) {
-      case AddressMode.Immediate:
-        variant = operation.immediate;
-        variantUops = definition?.immediate;
-        break;
-      case AddressMode.Direct:
-        variant = operation.direct;
-        variantUops = definition?.direct;
-        break;
-      case AddressMode.Indirect:
-        variant = operation.indirect;
-        variantUops = definition?.indirect;
-        break;
-    }
-    if (!variant) {
-      throw new Error(
-        `No variant for opcode ${st.decodedInstruction.opcode} with address mode ${st.decodedInstruction.addressMode}`,
-      );
-    }
-    st.currentOp = variant(st, UOPS);
-    st.setVariantUops(variantUops ?? []);
+    st.setVariantUops(st.variantUopsFor(st.decodedInstruction));
   },
 
   mSub(st) {
