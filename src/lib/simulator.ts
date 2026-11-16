@@ -358,19 +358,30 @@ export class Simulator {
     this.pc = 0;
     this.ir = 0;
     this.acc = 0;
+
     this.cf = false;
     this.ef = false;
     this.zf = false;
     this.nf = false;
     this.of = false;
+
     this.halted = false;
+
     this.skipNext = false;
     this.decodedInstruction = undefined;
     this.currentUops = [];
     this.uopIndex = -1;
+
     this.memory.fill(0);
     this.initBoundaries.length = 0;
     this.uopsExecuted = 0;
+
+    this.historyCountsIdx = 0;
+    this.historyFieldsIdx = 0;
+    this.historyValuesIdx = 0;
+    this.prevHistoryCounts.length = 0;
+    this.prevHistoryFields.length = 0;
+    this.prevHistoryValues.length = 0;
   }
 
   loadProgram(opcodes: OpcodeTable, program: ArrayLike<number | undefined>, start = 0): void {
@@ -485,8 +496,7 @@ export class Simulator {
   // set. A skipped uop still records an empty (skip-flag) history entry so
   // that backward steps stay aligned.
   private executeUop(index: number): void {
-    const branchyPredecessor =
-      index > 0 && BRANCHY_UOPS.includes(this.currentUops[index - 1]);
+    const branchyPredecessor = index > 0 && BRANCHY_UOPS.includes(this.currentUops[index - 1]);
     if (branchyPredecessor && this.skipNext) {
       this.save(Field.SKIP, 1);
       this.skipNext = false;
