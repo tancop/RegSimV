@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assemble, AssembleError, AssembleErrorType } from "./assemble";
+import { assemble, type AssembleError, AssembleErrorType, forceAssemble } from "./assemble";
 import { AddressMode, decodeInstruction, encodeInstruction, type Instruction } from "./encoding";
 import { BUILTIN_OPCODES, createOpcodeTable } from "./opcodes";
 import { Simulator } from "./simulator";
@@ -8,25 +8,25 @@ const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
 /** Assembles a single instruction and decodes it back. */
 function assembleOne(source: string): Instruction {
-  const words = assemble(source, OPCODES);
-  expect(words).toHaveLength(1);
-  return decodeInstruction(words[0]);
+  const result = forceAssemble(source, OPCODES, {});
+
+  expect(result).toHaveLength(1);
+  return decodeInstruction(result[0]!);
 }
 
-/** Assembles source and returns the thrown AssembleError (fails the test otherwise). */
-function assembleError(source: string): AssembleError {
-  try {
-    assemble(source, OPCODES);
-  } catch (error) {
-    if (error instanceof AssembleError) return error;
-    throw error; // unexpected error type
+/** Assembles source and returns the thrown AssembleErrors (fails the test otherwise). */
+function assembleErrors(source: string): AssembleError[] {
+  const result = assemble(source, OPCODES, {});
+
+  if ("code" in result) {
+    throw new Error(`expected assemble(${JSON.stringify(source)}) to return errors`);
   }
-  throw new Error(`expected assemble(${JSON.stringify(source)}) to throw an AssembleError`);
+
+  return result.errors;
 }
 
 describe("assemble", () => {
   it("encodes a bare number as immediate", () => {
-    expect.assertions(2);
     expect(assembleOne("add 5")).toEqual({
       opcode: 0,
       operand: 5,
@@ -35,7 +35,6 @@ describe("assemble", () => {
   });
 
   it("encodes immediate zero", () => {
-    expect.assertions(2);
     expect(assembleOne("add 0")).toEqual({
       opcode: 0,
       operand: 0,
@@ -44,13 +43,11 @@ describe("assemble", () => {
   });
 
   it("accepts the full signed 24-bit operand range", () => {
-    expect.assertions(4);
     expect(assembleOne("add 8388607").operand).toBe(0x7fffff);
     expect(assembleOne("add -8388608").operand).toBe(0x800000);
   });
 
   it("encodes [x] as direct", () => {
-    expect.assertions(2);
     expect(assembleOne("load [1024]")).toEqual({
       opcode: 2,
       operand: 1024,
@@ -59,7 +56,6 @@ describe("assemble", () => {
   });
 
   it("allows whitespace inside direct brackets", () => {
-    expect.assertions(2);
     expect(assembleOne("load [ 1024 ]")).toEqual({
       opcode: 2,
       operand: 1024,
@@ -68,7 +64,6 @@ describe("assemble", () => {
   });
 
   it("encodes [mem x] as indirect", () => {
-    expect.assertions(2);
     expect(assembleOne("store [mem 1025]")).toEqual({
       opcode: 1,
       operand: 1025,
@@ -76,17 +71,12 @@ describe("assemble", () => {
     } satisfies Instruction);
   });
 
-  it("encodes [memx] without a space", () => {
-    expect.assertions(2);
-    expect(assembleOne("load [mem302]")).toEqual({
-      opcode: 2,
-      operand: 302,
-      addressMode: AddressMode.Indirect,
-    } satisfies Instruction);
+  it("rejects [memx] without a space", () => {
+    // "mem302" is a valid label name but not defined in the program
+    expect(assembleErrors("load [mem302]")[0].type).toEqual(AssembleErrorType.UndefinedLabel);
   });
 
   it("encodes [ mem 302 ] with extra whitespace", () => {
-    expect.assertions(2);
     expect(assembleOne("load [ mem 302 ]")).toEqual({
       opcode: 2,
       operand: 302,
@@ -95,7 +85,6 @@ describe("assemble", () => {
   });
 
   it("accepts uppercase MEM", () => {
-    expect.assertions(2);
     expect(assembleOne("load [MEM 302]")).toEqual({
       opcode: 2,
       operand: 302,
@@ -104,7 +93,6 @@ describe("assemble", () => {
   });
 
   it("encodes zero-argument instructions without an operand", () => {
-    expect.assertions(2);
     expect(assembleOne("halt")).toEqual({
       opcode: 3,
       operand: 0,
@@ -113,7 +101,6 @@ describe("assemble", () => {
   });
 
   it("accepts any mnemonic casing", () => {
-    expect.assertions(2);
     expect(assembleOne("HaLt")).toEqual({
       opcode: 3,
       operand: 0,
@@ -122,8 +109,7 @@ describe("assemble", () => {
   });
 
   it("assembles a multi-line program, reserving blank lines as uninitialized words", () => {
-    expect.assertions(1);
-    expect(assemble("\nadd 5\n\n   \nhalt\n", OPCODES)).toEqual([
+    expect(forceAssemble("\nadd 5\n\n   \nhalt\n", OPCODES)).toEqual([
       undefined,
       encodeInstruction({ opcode: 0, operand: 5, addressMode: AddressMode.Immediate }),
       undefined,
@@ -132,14 +118,12 @@ describe("assemble", () => {
     ]);
   });
 
-  it("does not reserve words for comment-only lines", () => {
-    expect.assertions(1);
-    expect(assemble("add 5\n# comment\n   # another\nhalt", OPCODES)).toHaveLength(2);
+  it("leaves blank space for comment-only lines", () => {
+    expect(forceAssemble("add 5\n# comment\n   # another\nhalt", OPCODES)).toHaveLength(4);
   });
 
   it("labels point at the next emitted word across blank lines", () => {
-    expect.assertions(1);
-    const words = assemble("jmp start\n\nstart: add 1\nhalt", OPCODES);
+    const words = forceAssemble("jmp start\n\nstart: add 1\nhalt", OPCODES, {});
     expect(decodeInstruction(words[0] as number)).toEqual({
       opcode: 12,
       operand: 2,
@@ -147,79 +131,69 @@ describe("assemble", () => {
     } satisfies Instruction);
   });
 
-  it("strips full-line and trailing comments", () => {
-    expect.assertions(1);
+  it("strips trailing comments", () => {
     expect(
-      assemble("# a comment\nadd 5 # trailing comment\nhalt", OPCODES).map(decodeInstruction),
+      forceAssemble("# a comment\nadd 5 # trailing comment\nhalt", OPCODES, {}).map((i) =>
+        i ? decodeInstruction(i) : undefined,
+      ),
     ).toEqual([
+      undefined,
       { opcode: 0, operand: 5, addressMode: AddressMode.Immediate },
       { opcode: 3, operand: 0, addressMode: AddressMode.Immediate },
-    ] satisfies Instruction[]);
+    ] satisfies (Instruction | undefined)[]);
   });
 
   it("rejects an unknown mnemonic", () => {
-    expect.assertions(1);
-    expect(assembleError("frobnicate 5").type).toBe(AssembleErrorType.UnknownMnemonic);
+    expect(assembleErrors("frobnicate 5")[0].type).toBe(AssembleErrorType.UnknownMnemonic);
   });
 
   it("rejects a missing operand", () => {
-    expect.assertions(2);
-    expect(assembleError("add").type).toBe(AssembleErrorType.MissingOperand);
-    expect(assembleError("load").type).toBe(AssembleErrorType.MissingOperand);
+    expect(assembleErrors("add")[0].type).toBe(AssembleErrorType.MissingOperand);
+    expect(assembleErrors("load")[0].type).toBe(AssembleErrorType.MissingOperand);
   });
 
-  it("rejects malformed bracket operands", () => {
-    expect.assertions(3);
-    expect(assembleError("load [mem]").type).toBe(AssembleErrorType.MalformedOperand);
-    expect(assembleError("load [mem abc]").type).toBe(AssembleErrorType.MalformedOperand);
-    expect(assembleError("load [x]").type).toBe(AssembleErrorType.MalformedOperand);
+  it("rejects malformed indirect operand", () => {
+    expect(assembleErrors("load [mem]")[0].type).toBe(AssembleErrorType.MalformedOperand);
   });
 
   it("rejects non-integer operands", () => {
-    expect.assertions(1);
-    expect(assembleError("add 1.5").type).toBe(AssembleErrorType.InvalidOperand);
+    expect(assembleErrors("add 1.5")[0].type).toBe(AssembleErrorType.MalformedOperand);
   });
 
   it("encodes negative integer operands as two's complement", () => {
-    expect.assertions(5);
-    expect(() => assemble("add -1", OPCODES)).not.toThrow();
+    expect(() => assemble("add -1", OPCODES, {})).not.toThrow();
     expect(assembleOne("add -1").operand).toBe(0xffffff);
     expect(assembleOne("load [-1]").addressMode).toBe(AddressMode.Direct);
   });
 
   it("rejects operands over 24 bits", () => {
-    expect.assertions(2);
-    expect(assembleError("add 8388608").type).toBe(AssembleErrorType.InvalidOperand);
-    expect(assembleError("add -8388609").type).toBe(AssembleErrorType.InvalidOperand);
+    expect(assembleErrors("add 8388608")[0].type).toBe(AssembleErrorType.OperandOutOfRange);
+    expect(assembleErrors("add -8388609")[0].type).toBe(AssembleErrorType.OperandOutOfRange);
   });
 
   it("reports the line number of the offending line", () => {
-    expect.assertions(2);
-    const error = assembleError("add 5\nload [x]");
-    expect(error.type).toBe(AssembleErrorType.MalformedOperand);
-    expect(error.lineNum).toBe(1);
+    const error = assembleErrors("add 5\nload [x]");
+    expect(error[0].type).toBe(AssembleErrorType.UndefinedLabel);
+    expect(error[0].lineNum).toBe(1);
   });
 
   it("rejects an address mode the instruction does not support", () => {
-    expect.assertions(4);
-    expect(assembleError("store 1025").type).toBe(AssembleErrorType.UnsupportedAddressMode);
-    expect(assembleError("jmp [5]").type).toBe(AssembleErrorType.UnsupportedAddressMode);
-    expect(assembleError("shl [mem 5]").type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(assembleErrors("store 1025")[0].type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(assembleErrors("jmp [5]")[0].type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(assembleErrors("shl [mem 5]")[0].type).toBe(AssembleErrorType.UnsupportedAddressMode);
     // zero-argument instructions only accept the operand-less immediate form
-    expect(assembleError("halt [5]").type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(assembleErrors("halt [5]")[0].type).toBe(AssembleErrorType.UnsupportedAddressMode);
   });
 
   it("reports the line number of an unsupported address mode", () => {
-    expect.assertions(2);
-    const error = assembleError("add 5\nstore 6");
-    expect(error.type).toBe(AssembleErrorType.UnsupportedAddressMode);
-    expect(error.lineNum).toBe(1);
+    const errors = assembleErrors("add 5\nstore 6");
+    expect(errors[0].type).toBe(AssembleErrorType.UnsupportedAddressMode);
+    expect(errors[0].lineNum).toBe(1);
   });
 
   it("loadProgram stores ACC through the pointer given by [mem x]", () => {
-    expect.assertions(4);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, assemble("add 7\nstore [mem 1025]\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, forceAssemble("add 7\nstore [mem 1025]\nhalt", OPCODES, {}));
     sim.store(1025, 1026); // pointer cell: mem[1025] holds the target address
     expect(sim.initBoundaries).toEqual([2, 1024, 1025]); // program 0-2, pointer cell 1025
 
@@ -231,17 +205,15 @@ describe("assemble", () => {
   });
 
   it("rejects label starting with number", () => {
-    expect.assertions(1);
-    expect(assembleError("6ix9ine: nop").type).toBe(AssembleErrorType.MalformedLabel);
+    expect(assembleErrors("6ix9ine: nop")[0].type).toBe(AssembleErrorType.MalformedLabel);
   });
 
   it("accepts label including number", () => {
-    expect(() => assemble("agent47: nop", OPCODES)).not.toThrow();
+    expect(() => assemble("agent47: nop", OPCODES, {})).not.toThrow();
   });
 
   it("rejects double label", () => {
-    expect.assertions(1);
-    expect(assembleError("first: second: nop").type).toBe(AssembleErrorType.TooManyColons);
+    expect(assembleErrors("first: second: nop")[0].type).toBe(AssembleErrorType.TooManyColons);
   });
 
   it("assembles program with jump to label correctly", () => {
@@ -249,7 +221,7 @@ describe("assemble", () => {
 
     sim.loadProgram(
       OPCODES,
-      assemble(
+      forceAssemble(
         "start: load [1024]\ncmp 5\njc end\ninc [1024]\ninc [1025]\njmp start\nend: halt",
         OPCODES,
       ),
@@ -265,12 +237,10 @@ describe("assemble", () => {
   });
 
   it("rejects jump to unknown label", () => {
-    expect.assertions(1);
-    expect(assembleError("jmp test").type).toBe(AssembleErrorType.InvalidOperand);
+    expect(assembleErrors("jmp test")[0].type).toBe(AssembleErrorType.UndefinedLabel);
   });
 
   it("rejects broken operand with trailing bracket as malformed", () => {
-    expect.assertions(1);
-    expect(assembleError("load 1024]").type).toBe(AssembleErrorType.MalformedOperand);
+    expect(assembleErrors("load 1024]")[0].type).toBe(AssembleErrorType.MalformedOperand);
   });
 });

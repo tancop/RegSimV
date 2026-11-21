@@ -1,7 +1,7 @@
-import { splitLabels, type Labels } from "./assembler/labels";
+import { splitLabels, type Labels } from "./assembler/label";
 import { MAX_OPERAND, MIN_OPERAND, parseOperand } from "./assembler/operand";
-import { encodeInstruction } from "./encoding";
-import type { OpcodeTable } from "./opcodes";
+import { addressModeToString, encodeInstruction } from "./encoding";
+import { supportsMode, type OpcodeTable } from "./opcodes";
 
 export enum AssembleErrorType {
   /** A line contains more than one `:` label separator. */
@@ -32,6 +32,9 @@ export interface AssembleError {
 
 type AssembleResult = { code: (number | undefined)[] } | { errors: AssembleError[] };
 
+/** Mask turning a signed 24-bit operand into its unsigned encoding. */
+const OPERAND_MASK = 0xffffff;
+
 // Removes all characters after "#"
 const COMMENT_REGEX = /(.*)#.*$|(.*)$/;
 
@@ -40,6 +43,7 @@ const TOO_MANY_OPERANDS_REGEX = /\w+\s+\[.*\]\s+\S+/;
 
 export function assemble(source: string, opcodes: OpcodeTable, dataLabels: Labels): AssembleResult {
   const rawLines = source
+    .trimEnd()
     .split("\n")
     .map((v) => v.match(COMMENT_REGEX))
     .map((v) => (v ? (v[1] ?? v[2]).trim() : ""));
@@ -107,6 +111,7 @@ export function assemble(source: string, opcodes: OpcodeTable, dataLabels: Label
               message: `Label "${operand.label}" is not defined`,
             });
           }
+          operandValue = address;
         } else {
           if (operand.literal > MAX_OPERAND) {
             errors.push({
@@ -126,13 +131,21 @@ export function assemble(source: string, opcodes: OpcodeTable, dataLabels: Label
           operandValue = operand.literal;
         }
 
-        code.push(
-          encodeInstruction({
-            opcode,
-            operand: operandValue,
-            addressMode: operand.mode,
-          }),
-        );
+        if (!supportsMode(opcodes.uops[opcode], operand.mode)) {
+          errors.push({
+            type: AssembleErrorType.UnsupportedAddressMode,
+            lineNum,
+            message: `${mnemonic.toUpperCase()} does not support ${addressModeToString(operand.mode)} mode`,
+          });
+        } else {
+          code.push(
+            encodeInstruction({
+              opcode,
+              operand: operandValue & OPERAND_MASK,
+              addressMode: operand.mode,
+            }),
+          );
+        }
       }
     } else {
       errors.push({
@@ -148,4 +161,20 @@ export function assemble(source: string, opcodes: OpcodeTable, dataLabels: Label
   } else {
     return { code };
   }
+}
+
+export function forceAssemble(
+  program: string,
+  opcodes: OpcodeTable,
+  dataLabels?: Labels,
+): (number | undefined)[] {
+  const result = assemble(program, opcodes, dataLabels ?? {});
+
+  if ("errors" in result) {
+    throw new Error(
+      `Failed to assemble code: ${result.errors.map((e) => `line ${e.lineNum}, ${e.message}`).join("; ")}`,
+    );
+  }
+
+  return result.code;
 }

@@ -1,16 +1,16 @@
 import { AssembleErrorType, type AssembleError } from "#lib/assemble.ts";
 import { AddressMode } from "#lib/encoding.ts";
-import { isValidLabel } from "./labels";
+import { isValidLabel } from "./label";
 
 /** Inclusive bounds of a signed 24-bit operand. */
 export const MIN_OPERAND = -0x800000;
 export const MAX_OPERAND = 0x7fffff;
 
 // Indirect mode - `[mem 1024]`, `[mem label]`
-const INDIRECT_REGEX = /\[\s*mem (\w+)\s*\]/;
+const INDIRECT_REGEX = /\[\s*mem (-?\w+)\s*\]/i;
 
-// Direct mode - `[1024]`, `[label]`
-const DIRECT_REGEX = /\[\s*(\w+)\s*\]/;
+// Direct mode - `[-1024]`, `[label]`
+const DIRECT_REGEX = /\[\s*(-?\w+)\s*\]/;
 
 type Operand = { mode: AddressMode } & (
   | { literal: number }
@@ -23,6 +23,28 @@ export function parseOperand(operand: string, lineNum: number): OperandResult {
   if (!operand || !operand.length) {
     // No operand
     return { value: { mode: AddressMode.Immediate, nullOperand: true } };
+  }
+
+  if (operand.includes("[") && !operand.startsWith("[")) {
+    // Extra characters before [
+    return {
+      error: {
+        type: AssembleErrorType.MalformedOperand,
+        lineNum,
+        message: `Bad operand syntax`,
+      },
+    };
+  }
+
+  if (operand.includes("]") && !operand.endsWith("]")) {
+    // Extra characters after ]
+    return {
+      error: {
+        type: AssembleErrorType.MalformedOperand,
+        lineNum,
+        message: `Bad operand syntax`,
+      },
+    };
   }
 
   let match = operand.match(INDIRECT_REGEX);

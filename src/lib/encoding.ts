@@ -4,6 +4,17 @@ export enum AddressMode {
   Indirect,
 }
 
+export function addressModeToString(mode: AddressMode): string {
+  switch (mode) {
+    case AddressMode.Immediate:
+      return "immediate";
+    case AddressMode.Direct:
+      return "direct";
+    case AddressMode.Indirect:
+      return "indirect";
+  }
+}
+
 export interface Instruction {
   opcode: number;
   operand: number;

@@ -27,10 +27,16 @@ export function splitLabels(lines: string[]): [string[], Labels, AssembleError[]
           lineNum: idx,
           message: `Label cannot start with a digit`,
         });
+      } else if (label.toLowerCase() == "mem") {
+        errors.push({
+          type: AssembleErrorType.MalformedLabel,
+          lineNum: idx,
+          message: `"mem" is a reserved name`,
+        });
       } else {
         labels[first] = idx;
       }
-      result.push(rest[0]);
+      result.push(rest[0].trim());
     } else {
       // multiple colons
       errors.push({
@@ -38,7 +44,7 @@ export function splitLabels(lines: string[]): [string[], Labels, AssembleError[]
         lineNum: idx,
         message: `Too many label definitions`,
       });
-      result.push(rest[rest.length - 1]);
+      result.push(rest[rest.length - 1].trim());
     }
   }
 
@@ -46,5 +52,5 @@ export function splitLabels(lines: string[]): [string[], Labels, AssembleError[]
 }
 
 export function isValidLabel(label: string): boolean {
-  return !label.includes(" ") && !label[0].match(/[0-9]/);
+  return !label.includes(" ") && !label[0].match(/[0-9]/) && !(label.toLowerCase() == "mem");
 }

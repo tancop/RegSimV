@@ -1,3 +1,4 @@
+import { AddressMode } from "./encoding";
 import type { UOp } from "./uops";
 
 /** An operation with a list of uOps for each address mode. */
@@ -7,6 +8,17 @@ export interface Operation {
   indirect?: UOp[];
   /** True if the immediate form takes no argument, like `HALT` or `INC`.  */
   isZeroArgument?: boolean;
+}
+
+export function supportsMode(op: Operation, mode: AddressMode): boolean {
+  switch (mode) {
+    case AddressMode.Immediate:
+      return "immediate" in op;
+    case AddressMode.Direct:
+      return "direct" in op;
+    case AddressMode.Indirect:
+      return "indirect" in op;
+  }
 }
 
 /** A mnemonic paired with the micro-ops that implement it. */
