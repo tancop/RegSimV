@@ -3,10 +3,10 @@
 
   interface Props {
     source: string;
-    errorLine?: number;
+    errorLines: number[];
   }
 
-  let { source = $bindable(), errorLine }: Props = $props();
+  let { source = $bindable(), errorLines }: Props = $props();
 
   let lineCount = $derived(source.split("\n").length);
 </script>
@@ -16,7 +16,7 @@
     {#each range(lineCount) as idx}
       <p
         class="h-6 text-md/6 font-mono text-start
-        {errorLine === idx ? 'text-red-500' : 'text-gray-600'}"
+        {errorLines.includes(idx) ? 'text-red-500' : 'text-gray-600'}"
       >
         {idx}
       </p>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { assemble, AssembleError } from "#lib/assemble";
+  import { assemble } from "#lib/assemble";
   import Button from "#lib/Button.svelte";
   import CpuDiagram, { type Registers } from "#lib/diagram/CpuDiagram.svelte";
   import { BUILTIN_OPCODES, createOpcodeTable } from "#lib/opcodes.ts";
@@ -12,7 +12,7 @@
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
-  const DEMO = ["# Hi there!", "load [1024]", "add 5", "add 7", "store [1024]", "halt"].join("\n");
+  const DEMO = ["load [1024]", "add 5", "add 7", "store [1024]", "halt"].join("\n");
 
   const CURRENT_PROGRAM_KEY = "currentProgram";
 
@@ -48,11 +48,12 @@
   let dataMemoryStart = $state(1024);
   let tick = $state(0);
 
-  let [program, assembleError] = $derived.by(() => {
-    try {
-      return [assemble(source, OPCODES), undefined];
-    } catch (e) {
-      return [undefined, e as AssembleError];
+  let [program, assembleErrors] = $derived.by(() => {
+    const result = assemble(source, OPCODES, {});
+    if ("code" in result) {
+      return [result.code, undefined];
+    } else {
+      return [undefined, result.errors];
     }
   });
 
@@ -221,7 +222,7 @@
 </script>
 
 <main class="mx-auto grid main-grid p-5 size-full">
-  <CodeInput bind:source errorLine={assembleError?.line} />
+  <CodeInput bind:source errorLines={assembleErrors?.map((e) => e.lineNum) ?? []} />
   <div class="w-full flex flex-col">
     <CpuDiagram {registers} opcodes={OPCODES} />
     <div class="flex gap-3 items-start">
@@ -234,8 +235,10 @@
     </div>
   </div>
   <div class="flex flex-col size-full overflow-hidden">
-    {#if assembleError}
-      <ErrorText error={assembleError.message} />
+    {#if assembleErrors}
+      {#each assembleErrors as error}
+        <ErrorText error={error.message} />
+      {/each}
     {:else if runtimeError}
       <ErrorText error={runtimeError} />
     {/if}

@@ -197,7 +197,7 @@ describe("assemble", () => {
     expect.assertions(2);
     const error = assembleError("add 5\nload [x]");
     expect(error.type).toBe(AssembleErrorType.MalformedOperand);
-    expect(error.line).toBe(1);
+    expect(error.lineNum).toBe(1);
   });
 
   it("rejects an address mode the instruction does not support", () => {
@@ -213,7 +213,7 @@ describe("assemble", () => {
     expect.assertions(2);
     const error = assembleError("add 5\nstore 6");
     expect(error.type).toBe(AssembleErrorType.UnsupportedAddressMode);
-    expect(error.line).toBe(1);
+    expect(error.lineNum).toBe(1);
   });
 
   it("loadProgram stores ACC through the pointer given by [mem x]", () => {
@@ -232,7 +232,7 @@ describe("assemble", () => {
 
   it("rejects label starting with number", () => {
     expect.assertions(1);
-    expect(assembleError("6ix9ine: nop").type).toBe(AssembleErrorType.InvalidLabel);
+    expect(assembleError("6ix9ine: nop").type).toBe(AssembleErrorType.MalformedLabel);
   });
 
   it("accepts label including number", () => {
