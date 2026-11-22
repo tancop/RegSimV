@@ -33,6 +33,12 @@ export function splitLabels(lines: string[]): [string[], Labels, AssembleError[]
           lineNum: idx,
           message: `"mem" is a reserved name`,
         });
+      } else if (!label.match(VALID_LABEL_REGEX)) {
+        errors.push({
+          type: AssembleErrorType.MalformedLabel,
+          lineNum: idx,
+          message: `Label must not contain square brackets`,
+        });
       } else {
         labels[first] = idx;
       }
@@ -51,6 +57,8 @@ export function splitLabels(lines: string[]): [string[], Labels, AssembleError[]
   return [result, labels, errors];
 }
 
+const VALID_LABEL_REGEX = /^[^0-9[\]][^[\]]*$/;
+
 export function isValidLabel(label: string): boolean {
-  return !label.includes(" ") && !label[0].match(/[0-9]/) && !(label.toLowerCase() == "mem");
+  return !!label.match(VALID_LABEL_REGEX) && !(label.toLowerCase() == "mem");
 }

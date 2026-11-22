@@ -243,4 +243,12 @@ describe("assemble", () => {
   it("rejects broken operand with trailing bracket as malformed", () => {
     expect(assembleErrors("load 1024]")[0].type).toBe(AssembleErrorType.MalformedOperand);
   });
+
+  it("rejects label reference with square brackets", () => {
+    expect(assembleErrors("jmp bad[1024]")[0].type).toBe(AssembleErrorType.MalformedOperand);
+  });
+
+  it("rejects label definition with square brackets", () => {
+    expect(assembleErrors("bad[1]: add 67")[0].type).toBe(AssembleErrorType.MalformedLabel);
+  });
 });
