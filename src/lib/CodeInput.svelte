@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EditorState, Range, RangeSet } from "@codemirror/state";
+  import { EditorState, StateEffect, StateField, type RangeSet } from "@codemirror/state";
   import { Decoration, EditorView, keymap } from "@codemirror/view";
   import { defaultKeymap } from "@codemirror/commands";
   import { untrack } from "svelte";
@@ -12,37 +12,53 @@
   let { source = $bindable(), errorLines }: Props = $props();
 
   let node = $state<HTMLDivElement>();
+  let view = $state<EditorView>();
 
-  // This is always defined after page load
-  let view = $state<EditorView>()!;
+  const setErrorLines = StateEffect.define<number[]>();
+
+  const errorLineDecoration = Decoration.line({ class: "error-line" });
+
+  const errorLineField = StateField.define<RangeSet<Decoration>>({
+    create: () => Decoration.none,
+    update(decorations, tr) {
+      decorations = decorations.map(tr.changes);
+      for (const effect of tr.effects) {
+        if (effect.is(setErrorLines)) {
+          const ranges = effect.value
+            .filter((idx) => idx >= 0 && idx < tr.state.doc.lines)
+            .map((idx) => errorLineDecoration.range(tr.state.doc.line(idx + 1).from));
+          decorations = Decoration.set(ranges);
+        }
+      }
+      return decorations;
+    },
+  });
 
   $effect(() => {
-    let editorState = EditorState.create({
+    const editorState = EditorState.create({
       doc: `load [1024]\nadd 5\nadd 7\nstore [1024]\nhalt`,
       extensions: [
         keymap.of(defaultKeymap),
         EditorView.updateListener.of((update) => {
+          if (!update.docChanged) return;
           source = [...update.state.doc.iterLines()];
         }),
-        EditorView.decorations.of((view) => {
-          return Decoration.set(
-            errorLines.map((idx) => {
-              const line = view.state.doc.line(idx + 1);
-              return Decoration.line({ class: "underline decoration-red-500" }).range(
-                line.from,
-                line.from,
-              );
-            }),
-          );
-        }),
+        errorLineField,
+        EditorView.decorations.from(errorLineField),
       ],
     });
 
-    view = new EditorView({
-      state: editorState,
-    });
+    const editorView = new EditorView({ state: editorState });
+    view = editorView;
 
-    untrack(() => node?.appendChild(view.dom));
+    untrack(() => node?.appendChild(editorView.dom));
+
+    return () => editorView.destroy();
+  });
+
+  $effect(() => {
+    const lines = errorLines;
+    view?.dispatch({ effects: setErrorLines.of(lines) });
   });
 </script>
 
@@ -58,6 +74,9 @@
       }
       .cm-content {
         @apply font-mono text-base;
+      }
+      .error-line {
+        @apply underline decoration-red-500 decoration-wavy;
       }
     }
   }
