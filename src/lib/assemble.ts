@@ -41,10 +41,12 @@ const COMMENT_REGEX = /(.*)#.*$|(.*)$/;
 // Matches cases like `add [mem 1024] 2`
 const TOO_MANY_OPERANDS_REGEX = /\w+\s+\[.*\]\s+\S+/;
 
-export function assemble(source: string, opcodes: OpcodeTable, dataLabels: Labels): AssembleResult {
+export function assemble(
+  source: string[],
+  opcodes: OpcodeTable,
+  dataLabels: Labels,
+): AssembleResult {
   const rawLines = source
-    .trimEnd()
-    .split("\n")
     .map((v) => v.match(COMMENT_REGEX))
     .map((v) => (v ? (v[1] ?? v[2]).trim() : ""));
 

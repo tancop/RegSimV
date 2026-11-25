@@ -1,30 +1,50 @@
 <script lang="ts">
-  import { range } from "./range";
+  import { EditorState } from "@codemirror/state";
+  import { EditorView, keymap } from "@codemirror/view";
+  import { defaultKeymap } from "@codemirror/commands";
 
   interface Props {
-    source: string;
+    source: string[];
     errorLines: number[];
   }
 
   let { source = $bindable(), errorLines }: Props = $props();
+  let lineCount = $derived(source.length);
 
-  let lineCount = $derived(source.split("\n").length);
+  let node = $state<HTMLDivElement>();
+
+  $effect(() => {
+    let editorState = EditorState.create({
+      doc: `load [1024]\nadd 5\nadd 7\nstore [1024]\nhalt`,
+      extensions: [
+        keymap.of(defaultKeymap),
+        EditorView.updateListener.of((update) => {
+          source = [...update.state.doc.iterLines()];
+        }),
+      ],
+    });
+
+    let view = new EditorView({
+      state: editorState,
+    });
+
+    node?.appendChild(view.dom);
+  });
 </script>
 
-<div class="flex gap-2 size-full overflow-y-auto">
-  <div class="flex flex-col w-6">
-    {#each range(lineCount) as idx}
-      <p
-        class="h-6 text-md/6 font-mono text-start
-        {errorLines.includes(idx) ? 'text-red-500' : 'text-gray-600'}"
-      >
-        {idx}
-      </p>
-    {/each}
-  </div>
-  <textarea
-    class="w-full h-full resize-none bg-transparent text-md/6 text-gray-900 font-mono
-    focus:outline-none overflow-y-hidden overflow-x-auto whitespace-pre"
-    spellcheck="false"
-    bind:value={source}></textarea>
-</div>
+<div bind:this={node}></div>
+
+<style>
+  @reference "../routes/layout.css";
+
+  :global {
+    @layer components {
+      .cm-editor {
+        @apply pt-1;
+      }
+      .cm-content {
+        @apply font-mono text-base;
+      }
+    }
+  }
+</style>

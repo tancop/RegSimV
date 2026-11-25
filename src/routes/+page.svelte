@@ -12,12 +12,12 @@
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
-  const DEMO = ["load [1024]", "add 5", "add 7", "store [1024]", "halt"].join("\n");
+  const DEMO = ["load [1024]", "add 5", "add 7", "store [1024]", "halt"];
 
   const CURRENT_PROGRAM_KEY = "currentProgram";
 
   interface SavedProgram {
-    source: string;
+    source: string[];
     memory: [number, number][];
     dataMemoryStart: number;
   }
@@ -25,7 +25,7 @@
   function validateSavedProgram(obj: unknown): obj is SavedProgram {
     if (typeof obj !== "object" || obj === null) return false;
     const o = obj as Record<string, unknown>;
-    if (typeof o.source !== "string") return false;
+    if (!Array.isArray(o.source)) return false;
     if (!Array.isArray(o.memory)) return false;
     if (typeof o.dataMemoryStart !== "number") return false;
     return true;
