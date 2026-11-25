@@ -222,7 +222,11 @@
 </script>
 
 <main class="mx-auto grid main-grid p-5 size-full">
-  <CodeInput bind:source errorLines={assembleErrors?.map((e) => e.lineNum) ?? []} />
+  <CodeInput
+    bind:source
+    lineCount={dataMemoryStart}
+    errorLines={assembleErrors?.map(({ lineNum }) => lineNum) ?? []}
+  />
   <div class="w-full flex flex-col">
     <CpuDiagram {registers} opcodes={OPCODES} />
     <div class="flex gap-3 items-start">
