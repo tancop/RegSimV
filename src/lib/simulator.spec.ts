@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assemble, forceAssemble } from "./assemble";
+import { assemble, assembleTest } from "./assemble";
 import { Simulator, Field } from "./simulator";
 import { BUILTIN_OPCODES, createOpcodeTable, type OpcodeTable } from "./opcodes";
 import { I32_MIN, UOPS } from "./uops";
@@ -11,7 +11,7 @@ describe("simulator", () => {
   it("runs ADD immediate then HALT", () => {
     expect.assertions(2);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nHALT", OPCODES));
     const steps = sim.run();
     expect(sim.acc).toBe(5);
     expect(steps).toBe(2);
@@ -20,7 +20,7 @@ describe("simulator", () => {
   it("tracks the current micro-op and steps it back with restore", () => {
     expect.assertions(7);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nHALT", OPCODES));
     expect(sim.uopIndex).toBe(-1);
     expect(sim.uopNames[sim.uopIndex] ?? "[none]").toBe("[none]");
     for (let i = 0; i < 7; i++) sim.uStep();
@@ -43,7 +43,7 @@ describe("simulator", () => {
   it("steps the whole instruction back to the previous boundary", () => {
     expect.assertions(4);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nHALT", OPCODES));
     for (let i = 0; i < 7; i++) sim.uStep();
     expect(sim.uopIndex).toBe(6);
     expect(sim.acc).toBe(5);
@@ -56,7 +56,7 @@ describe("simulator", () => {
   it("restores the previous instruction when a backward step crosses a boundary", () => {
     expect.assertions(5);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nADD 7\nHALT", OPCODES));
     sim.step(); // ADD 5, then start ADD 7 (first micro-op)
     for (let i = 0; i < 6; i++) sim.uStep(); // finish ADD 7
     expect(sim.uopIndex).toBe(6);
@@ -71,7 +71,7 @@ describe("simulator", () => {
   it("restores the previous instruction on a single uBack across a boundary", () => {
     expect.assertions(4);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nADD 7\nHALT", OPCODES));
     sim.step(); // ADD 5, then start ADD 7 (first micro-op)
     expect(sim.uopIndex).toBe(0);
     expect(sim.decodedInstruction?.operand).toBe(5);
@@ -83,7 +83,7 @@ describe("simulator", () => {
   it("resumes the next micro-op forward after stepping back", () => {
     expect.assertions(4);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nADD 7\nHALT", OPCODES));
     sim.step(); // ADD 5, then start ADD 7 (first micro-op)
     sim.uStep(); // READ MEM
     sim.uStep(); // MBR => IR
@@ -98,7 +98,7 @@ describe("simulator", () => {
   it("re-fetches the current instruction after backing across a boundary", () => {
     expect.assertions(4);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nADD 7\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nADD 7\nHALT", OPCODES));
     sim.step(); // ADD 5, then start ADD 7
     for (let i = 0; i < 6; i++) sim.uStep(); // finish ADD 7
     sim.back(); // back to ADD 5's final micro-op
@@ -115,7 +115,7 @@ describe("simulator", () => {
     const sim = new Simulator();
     // JZ with a non-zero accumulator skips its branch uop, exercising the
     // branchy skip path on the way down and back up.
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nJZ 2\nADD 7\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nJZ 2\nADD 7\nHALT", OPCODES));
     const steps = 20;
     for (let i = 0; i < steps; i++) sim.uStep();
     const pc = sim.pc;
@@ -132,7 +132,7 @@ describe("simulator", () => {
   it("rejects out-of-range memory access", () => {
     expect.assertions(1);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("LOAD [5000]", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("LOAD [5000]", OPCODES));
     expect(() => sim.step()).toThrow(RangeError);
   });
 
@@ -169,7 +169,7 @@ describe("simulator", () => {
   it("halts on a read from uninitialized memory", () => {
     expect.assertions(3);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("LOAD [2000]\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("LOAD [2000]\nHALT", OPCODES));
     expect(() => sim.run()).toThrow(/uninitialized/i);
     expect(sim.halted).toBe(true);
     sim.step(); // Stays halted instead of re-executing the instruction.
@@ -179,7 +179,7 @@ describe("simulator", () => {
   it("reads data initialized through store", () => {
     expect.assertions(1);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("LOAD [1024]\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("LOAD [1024]\nHALT", OPCODES));
     sim.store(1024, 41);
     sim.run();
     expect(sim.acc).toBe(41);
@@ -189,7 +189,7 @@ describe("simulator", () => {
     const sim = new Simulator();
     sim.loadProgram(
       OPCODES,
-      forceAssemble("load [1024]\ncmp 5\njc 5\ninc [1024]\njmp 0\nhalt", OPCODES),
+      assembleTest("load [1024]\ncmp 5\njc 5\ninc [1024]\njmp 0\nhalt", OPCODES),
     );
     sim.store(1024, 0);
     sim.run();
@@ -243,7 +243,7 @@ describe("simulator", () => {
 
   it("divides two positive numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\ndiv 43\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\ndiv 43\nhalt", OPCODES));
     sim.store(1024, 4085);
 
     sim.run();
@@ -254,7 +254,7 @@ describe("simulator", () => {
 
   it("uses floor division", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\ndiv 63\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\ndiv 63\nhalt", OPCODES));
     sim.store(1024, 1738);
 
     sim.run();
@@ -265,7 +265,7 @@ describe("simulator", () => {
 
   it("divides by a negative number", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\ndiv -63\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\ndiv -63\nhalt", OPCODES));
     sim.store(1024, 1738);
 
     sim.run();
@@ -276,7 +276,7 @@ describe("simulator", () => {
 
   it("divides two large negative numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\ndiv -808\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\ndiv -808\nhalt", OPCODES));
     sim.store(1024, -7355608);
 
     sim.run();
@@ -287,7 +287,7 @@ describe("simulator", () => {
 
   it("sets OF=1 and ACC=0 on division by zero", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\ndiv 0\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\ndiv 0\nhalt", OPCODES));
     sim.store(1024, 1738);
 
     sim.run();
@@ -298,7 +298,7 @@ describe("simulator", () => {
 
   it("sets OF=1 and leaves ACC unchanged on overflowing division", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\ndiv -1\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\ndiv -1\nhalt", OPCODES));
     sim.store(1024, I32_MIN);
 
     sim.run();
@@ -309,7 +309,7 @@ describe("simulator", () => {
 
   it("multiplies two positive numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nmul 831\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nmul 831\nhalt", OPCODES));
     sim.store(1024, 821);
 
     sim.run();
@@ -320,7 +320,7 @@ describe("simulator", () => {
 
   it("multiplies with a negative number", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nmul -831\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nmul -831\nhalt", OPCODES));
     sim.store(1024, 821);
 
     sim.run();
@@ -331,7 +331,7 @@ describe("simulator", () => {
 
   it("multiplies two negative numbers", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nmul -831\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nmul -831\nhalt", OPCODES));
     sim.store(1024, -821);
 
     sim.run();
@@ -342,7 +342,7 @@ describe("simulator", () => {
 
   it("sets OF=1 and NF=1 on overflowing multiply", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nmul [1025]\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nmul [1025]\nhalt", OPCODES));
     sim.store(1024, 1738);
     sim.store(1025, 7183015);
 
@@ -357,7 +357,7 @@ describe("simulator", () => {
 
   it("shifts left normal positive number", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nshl\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nshl\nhalt", OPCODES));
     sim.store(1024, 21);
 
     sim.run();
@@ -368,7 +368,7 @@ describe("simulator", () => {
 
   it("shifts left and sets OF when MSB is 1", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nshl\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nshl\nhalt", OPCODES));
 
     sim.store(1024, -2147483648);
 
@@ -380,7 +380,7 @@ describe("simulator", () => {
 
   it("shifts right normal positive number", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nshr\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nshr\nhalt", OPCODES));
     sim.store(1024, 42);
 
     sim.run();
@@ -391,7 +391,7 @@ describe("simulator", () => {
 
   it("shifts right and sets OF when LSB is 1", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nshr\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nshr\nhalt", OPCODES));
     sim.store(1024, 1);
 
     sim.run();
@@ -402,7 +402,7 @@ describe("simulator", () => {
 
   it("rotates left through OF without existing OF", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nrol\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nrol\nhalt", OPCODES));
     sim.store(1024, -2147483648);
     sim.of = false;
 
@@ -414,7 +414,7 @@ describe("simulator", () => {
 
   it("rotates left through OF with existing OF", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nrol\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nrol\nhalt", OPCODES));
     sim.store(1024, 0);
 
     sim.of = true;
@@ -427,7 +427,7 @@ describe("simulator", () => {
 
   it("rotates right through OF without existing OF", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nror\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nror\nhalt", OPCODES));
     sim.store(1024, 1);
     sim.of = false;
 
@@ -439,7 +439,7 @@ describe("simulator", () => {
 
   it("rotates right through OF with existing OF", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("load [1024]\nror\nhalt", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("load [1024]\nror\nhalt", OPCODES));
     sim.store(1024, 0);
     sim.of = true;
 
@@ -518,7 +518,7 @@ function program(lines: string[], opcodes: OpcodeTable = OPCODES): (number | und
       expanded.push(line);
     }
   }
-  const result = assemble(expanded.join("\n"), opcodes, {});
+  const result = assemble(expanded, opcodes, {});
 
   if ("errors" in result) {
     throw new Error(
@@ -573,7 +573,7 @@ describe("simulator time travel", () => {
   it("restores the initial state by undoing a full instruction", () => {
     expect.assertions(11);
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("ADD 5\nHALT", OPCODES));
+    sim.loadProgram(OPCODES, assembleTest("ADD 5\nHALT", OPCODES));
     sim.step();
     expect(sim.acc).toBe(5);
     expect(sim.pc).toBe(1);

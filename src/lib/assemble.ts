@@ -165,12 +165,12 @@ export function assemble(
   }
 }
 
-export function forceAssemble(
+export function assembleTest(
   program: string,
   opcodes: OpcodeTable,
   dataLabels?: Labels,
 ): (number | undefined)[] {
-  const result = assemble(program, opcodes, dataLabels ?? {});
+  const result = assemble(program.trimEnd().split("\n"), opcodes, dataLabels ?? {});
 
   if ("errors" in result) {
     throw new Error(

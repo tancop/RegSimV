@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assemble, type AssembleError, AssembleErrorType, forceAssemble } from "./assemble";
+import { assemble, type AssembleError, AssembleErrorType, assembleTest } from "./assemble";
 import { AddressMode, decodeInstruction, encodeInstruction, type Instruction } from "./encoding";
 import { BUILTIN_OPCODES, createOpcodeTable } from "./opcodes";
 import { Simulator } from "./simulator";
@@ -8,7 +8,7 @@ const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
 /** Assembles a single instruction and decodes it back. */
 function assembleOne(source: string): Instruction {
-  const result = forceAssemble(source, OPCODES, {});
+  const result = assembleTest(source, OPCODES, {});
 
   expect(result).toHaveLength(1);
   return decodeInstruction(result[0]!);
@@ -16,7 +16,7 @@ function assembleOne(source: string): Instruction {
 
 /** Assembles source and returns the thrown AssembleErrors (fails the test otherwise). */
 function assembleErrors(source: string): AssembleError[] {
-  const result = assemble(source, OPCODES, {});
+  const result = assemble(source.split("\n"), OPCODES, {});
 
   if ("code" in result) {
     throw new Error(`expected assemble(${JSON.stringify(source)}) to return errors`);
@@ -109,7 +109,7 @@ describe("assemble", () => {
   });
 
   it("assembles a multi-line program, reserving blank lines as uninitialized words", () => {
-    expect(forceAssemble("\nadd 5\n\n   \nhalt\n", OPCODES)).toEqual([
+    expect(assembleTest("\nadd 5\n\n   \nhalt\n", OPCODES)).toEqual([
       undefined,
       encodeInstruction({ opcode: 0, operand: 5, addressMode: AddressMode.Immediate }),
       undefined,
@@ -119,11 +119,11 @@ describe("assemble", () => {
   });
 
   it("leaves blank space for comment-only lines", () => {
-    expect(forceAssemble("add 5\n# comment\n   # another\nhalt", OPCODES)).toHaveLength(4);
+    expect(assembleTest("add 5\n# comment\n   # another\nhalt", OPCODES)).toHaveLength(4);
   });
 
   it("labels point at the next emitted word across blank lines", () => {
-    const words = forceAssemble("jmp start\n\nstart: add 1\nhalt", OPCODES, {});
+    const words = assembleTest("jmp start\n\nstart: add 1\nhalt", OPCODES, {});
     expect(decodeInstruction(words[0] as number)).toEqual({
       opcode: 12,
       operand: 2,
@@ -133,7 +133,7 @@ describe("assemble", () => {
 
   it("strips trailing comments", () => {
     expect(
-      forceAssemble("# a comment\nadd 5 # trailing comment\nhalt", OPCODES, {}).map((i) =>
+      assembleTest("# a comment\nadd 5 # trailing comment\nhalt", OPCODES, {}).map((i) =>
         i ? decodeInstruction(i) : undefined,
       ),
     ).toEqual([
@@ -161,7 +161,7 @@ describe("assemble", () => {
   });
 
   it("encodes negative integer operands as two's complement", () => {
-    expect(() => assemble("add -1", OPCODES, {})).not.toThrow();
+    expect(() => assembleTest("add -1", OPCODES, {})).not.toThrow();
     expect(assembleOne("add -1").operand).toBe(0xffffff);
     expect(assembleOne("load [-1]").addressMode).toBe(AddressMode.Direct);
   });
@@ -193,7 +193,7 @@ describe("assemble", () => {
 
   it("loadProgram stores ACC through the pointer given by [mem x]", () => {
     const sim = new Simulator();
-    sim.loadProgram(OPCODES, forceAssemble("add 7\nstore [mem 1025]\nhalt", OPCODES, {}));
+    sim.loadProgram(OPCODES, assembleTest("add 7\nstore [mem 1025]\nhalt", OPCODES, {}));
     sim.store(1025, 1026); // pointer cell: mem[1025] holds the target address
     expect(sim.initBoundaries).toEqual([2, 1024, 1025]); // program 0-2, pointer cell 1025
 
@@ -209,7 +209,7 @@ describe("assemble", () => {
   });
 
   it("accepts label including number", () => {
-    expect(() => assemble("agent47: nop", OPCODES, {})).not.toThrow();
+    expect(() => assembleTest("agent47: nop", OPCODES, {})).not.toThrow();
   });
 
   it("rejects double label", () => {
@@ -221,7 +221,7 @@ describe("assemble", () => {
 
     sim.loadProgram(
       OPCODES,
-      forceAssemble(
+      assembleTest(
         "start: load [1024]\ncmp 5\njc end\ninc [1024]\ninc [1025]\njmp start\nend: halt",
         OPCODES,
       ),
