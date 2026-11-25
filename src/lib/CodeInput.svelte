@@ -1,6 +1,6 @@
 <script lang="ts">
   import { EditorState, StateEffect, StateField, type RangeSet } from "@codemirror/state";
-  import { Decoration, EditorView, keymap } from "@codemirror/view";
+  import { Decoration, EditorView, keymap, lineNumbers } from "@codemirror/view";
   import { defaultKeymap } from "@codemirror/commands";
   import { untrack } from "svelte";
 
@@ -45,6 +45,11 @@
         }),
         errorLineField,
         EditorView.decorations.from(errorLineField),
+        lineNumbers({
+          formatNumber(lineNo, state) {
+            return (lineNo - 1).toString();
+          },
+        }),
       ],
     });
 
@@ -77,6 +82,9 @@
       }
       .error-line {
         @apply underline decoration-red-500 decoration-wavy;
+      }
+      .cm-gutterElement {
+        @apply font-mono text-base text-left w-7;
       }
     }
   }
