@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { EditorState } from "@codemirror/state";
-  import { EditorView, keymap } from "@codemirror/view";
+  import { EditorState, Range, RangeSet } from "@codemirror/state";
+  import { Decoration, EditorView, keymap } from "@codemirror/view";
   import { defaultKeymap } from "@codemirror/commands";
+  import { untrack } from "svelte";
 
   interface Props {
     source: string[];
@@ -9,9 +10,11 @@
   }
 
   let { source = $bindable(), errorLines }: Props = $props();
-  let lineCount = $derived(source.length);
 
   let node = $state<HTMLDivElement>();
+
+  // This is always defined after page load
+  let view = $state<EditorView>()!;
 
   $effect(() => {
     let editorState = EditorState.create({
@@ -21,14 +24,25 @@
         EditorView.updateListener.of((update) => {
           source = [...update.state.doc.iterLines()];
         }),
+        EditorView.decorations.of((view) => {
+          return Decoration.set(
+            errorLines.map((idx) => {
+              const line = view.state.doc.line(idx + 1);
+              return Decoration.line({ class: "underline decoration-red-500" }).range(
+                line.from,
+                line.from,
+              );
+            }),
+          );
+        }),
       ],
     });
 
-    let view = new EditorView({
+    view = new EditorView({
       state: editorState,
     });
 
-    node?.appendChild(view.dom);
+    untrack(() => node?.appendChild(view.dom));
   });
 </script>
 
