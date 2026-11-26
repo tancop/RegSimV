@@ -1,4 +1,5 @@
 import testFile from "#lib/data/milionplus.regs?raw";
+import crlfTestFile from "#lib/data/milionplus-crlf.regs?raw";
 import { describe, expect, it } from "vitest";
 import { RegsSerializer } from "./regs";
 
@@ -22,6 +23,20 @@ const testCode = [
 describe("RegSim import", () => {
   it("loads milionplus.regs properly", () => {
     const result = RegsSerializer.import(testFile);
+
+    expect(result.dataMemoryStart).toBe(1024);
+    expect(result.memory).toEqual([
+      [1024, 0],
+      [1025, 0],
+      [1026, 0],
+      [1027, 0],
+    ]);
+    expect(result.source).toEqual(testCode);
+    expect(result.customInstructions.length).toBe(0);
+  });
+
+  it("accepts file with CRLF line endings", () => {
+    const result = RegsSerializer.import(crlfTestFile);
 
     expect(result.dataMemoryStart).toBe(1024);
     expect(result.memory).toEqual([
