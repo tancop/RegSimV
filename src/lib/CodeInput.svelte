@@ -7,9 +7,10 @@
   interface Props {
     source: string[];
     errorLines: number[];
+    lineCount: number;
   }
 
-  let { source = $bindable(), errorLines }: Props = $props();
+  let { source = $bindable(), errorLines, lineCount }: Props = $props();
 
   let node = $state<HTMLDivElement>();
   let view = $state<EditorView>();
@@ -41,7 +42,7 @@
         keymap.of(defaultKeymap),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return;
-          source = [...update.state.doc.iterLines()];
+          source = [...update.state.doc.iterLines()].slice(0, lineCount);
         }),
         errorLineField,
         EditorView.decorations.from(errorLineField),
@@ -67,7 +68,7 @@
   });
 </script>
 
-<div bind:this={node}></div>
+<div class="overflow-auto" bind:this={node}></div>
 
 <style>
   @reference "../routes/layout.css";
@@ -75,7 +76,7 @@
   :global {
     @layer components {
       .cm-editor {
-        @apply pt-1;
+        @apply pt-1 size-full;
       }
       .cm-content {
         @apply font-mono text-base;
