@@ -88,7 +88,7 @@ export const RegsSerializer = {
   },
 
   export: function (program: SavedProgram): string {
-    let result = program.dataMemoryStart.toString() + "\n";
+    let result = program.dataMemoryStart.toString() + "\r\n";
 
     const opcodes = createOpcodeTable(BUILTIN_OPCODES.concat(program.customInstructions));
     const assembled = assemble(program.source, opcodes, {});
@@ -102,15 +102,15 @@ export const RegsSerializer = {
       const ins = assembled.code[i];
 
       if (ins === undefined) {
-        result += `0\nfalse\nfalse\n`;
+        result += `0\r\nfalse\r\nfalse\r\n`;
       } else {
-        result += `${ins}\ntrue\nfalse\n`;
+        result += `${ins}\r\ntrue\r\nfalse\r\n`;
       }
     }
 
     // Fill empty space after code
     for (let i = codeEnd; i < program.dataMemoryStart; i++) {
-      result += `0\nfalse\nfalse\n`;
+      result += `0\r\nfalse\r\nfalse\r\n`;
     }
 
     const data = new Map<number, number>(program.memory);
@@ -118,14 +118,14 @@ export const RegsSerializer = {
     // Fill data memory
     for (let i = program.dataMemoryStart; i < MEMORY_SIZE; i++) {
       if (data.has(i)) {
-        result += `${data.get(i)!}\ntrue\nfalse\n`;
+        result += `${data.get(i)!}\r\ntrue\r\nfalse\r\n`;
       } else {
-        result += `0\nfalse\nfalse\n`;
+        result += `0\r\nfalse\r\nfalse\r\n`;
       }
     }
 
     // Terminator
-    result += `YYYYYYYYYY\n`;
+    result += `YYYYYYYYYY\r\n`;
 
     return result;
   },
