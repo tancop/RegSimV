@@ -9,27 +9,13 @@
   import { onMount } from "svelte";
   import { range } from "#lib/range.ts";
   import CodeInput from "#lib/CodeInput.svelte";
+  import { validateSavedProgram, type SavedProgram } from "#lib/storage/savedProgram.ts";
 
   const OPCODES = createOpcodeTable(BUILTIN_OPCODES);
 
   const DEMO = ["load [1024]", "add 5", "add 7", "store [1024]", "halt"];
 
   const CURRENT_PROGRAM_KEY = "currentProgram";
-
-  interface SavedProgram {
-    source: string[];
-    memory: [number, number][];
-    dataMemoryStart: number;
-  }
-
-  function validateSavedProgram(obj: unknown): obj is SavedProgram {
-    if (typeof obj !== "object" || obj === null) return false;
-    const o = obj as Record<string, unknown>;
-    if (!Array.isArray(o.source)) return false;
-    if (!Array.isArray(o.memory)) return false;
-    if (typeof o.dataMemoryStart !== "number") return false;
-    return true;
-  }
 
   onMount(() => {
     const saved = JSON.parse(localStorage.getItem(CURRENT_PROGRAM_KEY) ?? "{}");
@@ -66,6 +52,7 @@
         source,
         memory: Array.from(memory.entries()),
         dataMemoryStart,
+        customInstructions: [],
       } satisfies SavedProgram),
     );
   });

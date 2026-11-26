@@ -1,3 +1,5 @@
+import type { OpcodeTable } from "./opcodes";
+
 export enum AddressMode {
   Immediate,
   Direct,
@@ -49,4 +51,25 @@ export function encodeInstruction(ins: Instruction): number {
   }
 
   return (ins.addressMode << 6) | (ins.opcode & 0x3f) | ((ins.operand & 0xffffff) << 8);
+}
+
+export function printInstruction(
+  ins: Instruction,
+  opcodes: OpcodeTable,
+  lowerCase = false,
+): string {
+  let mnemonic = opcodes.indexToName[ins.opcode];
+  if (lowerCase) mnemonic = mnemonic.toLowerCase();
+
+  switch (ins.addressMode) {
+    case AddressMode.Immediate:
+      if (opcodes.uops[ins.opcode].isZeroArgument) {
+        return mnemonic;
+      }
+      return `${mnemonic} ${ins.operand}`;
+    case AddressMode.Direct:
+      return `${mnemonic} [${ins.operand}]`;
+    case AddressMode.Indirect:
+      return `${mnemonic} [mem ${ins.operand}]`;
+  }
 }
